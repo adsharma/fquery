@@ -12,6 +12,7 @@ class ViewModel(OrderedDict):
     """
 
     IDKEY = ":id"
+    TYPE_KEY = ":type"
 
     def __lt__(self, other):
         return self[ViewModel.IDKEY] < other[ViewModel.IDKEY]
@@ -30,3 +31,10 @@ class ViewModel(OrderedDict):
             return hash(self[ViewModel.IDKEY])
         else:
             return 0
+
+    def __setitem__(self, name, value):
+        if name == "id":
+            name = ViewModel.IDKEY
+        elif name == "_type":
+            name = ViewModel.TYPE_KEY
+        super().__setitem__(name, value)

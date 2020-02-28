@@ -4,25 +4,33 @@
 # LICENSE file in the root directory of this source tree.
 import random
 
-from view_model import ViewModel
+from dataclasses import dataclass
 from query import Query, QueryableOp
-from walk import ViewModel
+from view_model import ViewModel
 
-class MockUser(ViewModel):
+
+@dataclass
+class MockUserBase(ViewModel):
+    name: str
+    age: int
+
+
+class MockUser(MockUserBase):
     def __init__(self, id):
-        super().__init__()
+        ViewModel().__init__()
         self.id = id
 
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+        ViewModel.__setitem__(self, name, value)
+
     def get(self):
-        id = self.id
-        return ViewModel(
-            {
-                ":id": id,
-                "name": "id%d" % id,
-                ":type": random.choice([1, 2]),
-                "age": random.choice([16, 17, 18]),
-            }
-        )
+        # A typical implementation may fetch fields from a database
+        # based on self.id here
+        self.name = f"id{self.id}"
+        self._type = random.choice([1, 2])
+        self.age = random.choice([16, 17, 18])
+        return self
 
 
 class UserQuery(Query):
