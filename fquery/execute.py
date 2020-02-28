@@ -12,23 +12,23 @@ import operator
 from functools import partial
 from typing import Any, AsyncGenerator, Callable, Iterable, List
 
-from item import IDKEY, Item
 from resolve import VISITED_EDGES_KEY
+from view_model import ViewModel
 from visitor import Visitor
 from walk import leaf_it, materialize_walk
 
 
-def project_item(keys: List[str]) -> Callable[[Item], Iterable]:
+def project_item(keys: List[str]) -> Callable[[ViewModel], Iterable]:
     """Like projection, but operates on a single item instead of a list"""
     return lambda x: {k: x[k] for k in keys}
 
 
-def rename(env: dict) -> Callable[[Item], Iterable]:
+def rename(env: dict) -> Callable[[ViewModel], Iterable]:
     """Return a lambda that adds some aliases specified by env"""
     return lambda x: (x.update({k: x[v] for k, v in env}), x)[1]
 
 
-def projection_cmp(keys: List[str]) -> Callable[[Item], List]:
+def projection_cmp(keys: List[str]) -> Callable[[ViewModel], List]:
     return lambda x: [x[k] for k in keys]
 
 
@@ -47,14 +47,14 @@ def intersect(its: List[Iterable]) -> Iterable:
     source = heapq.merge(*its, reverse=True)
     return (
         k
-        for k, g in itertools.groupby(source, project_item([IDKEY]))
+        for k, g in itertools.groupby(source, project_item([ViewModel.IDKEY]))
         if count_it(g) == len(its)
     )
 
 
 def union(its: List[Iterable]) -> Iterable:
     source = heapq.merge(*its, reverse=True)
-    return (k for k, g in itertools.groupby(source, project_item([IDKEY])))
+    return (k for k, g in itertools.groupby(source, project_item([ViewModel.IDKEY])))
 
 
 def reduce(function, iterable, initializer=None):
@@ -114,18 +114,18 @@ def merge(its):
 # (3 2 1) instead of  [{':id': 3}, {':id': 2}, {':id': 1}]
 
 
-def dictify(id_list: Iterable[int]) -> Iterable[Item]:
+def dictify(id_list: Iterable[int]) -> Iterable[ViewModel]:
     for x in id_list:
-        yield Item({IDKEY: x})
+        yield ViewModel({ViewModel.IDKEY: x})
 
 
 def ldictify(id_list):
     return list(dictify(id_list))
 
 
-def undictify(dict_it: Iterable[Item]) -> Iterable[int]:
+def undictify(dict_it: Iterable[ViewModel]) -> Iterable[int]:
     for i in dict_it:
-        yield i[IDKEY]
+        yield i[ViewModel.IDKEY]
 
 
 def apply_func(x, map_func):
@@ -142,9 +142,9 @@ class AbstractSyntaxTreeVisitor(Visitor):
         self.parent_iter = None
         self.parent_key = None
         if id1s:
-            self.root = {id1[IDKEY]: {} for id1 in id1s}
+            self.root = {id1[ViewModel.IDKEY]: {} for id1 in id1s}
         else:
-            self.root = Item({None: self.iter})
+            self.root = ViewModel({None: self.iter})
         self.id1s = id1s
         self.map_func: AsyncGenerator = self._nop
 
@@ -177,7 +177,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
 
     def nested(func):
         """Apply self.map_func to all the values in the map.
-           map_func takes a list of Items as the argument
+           map_func takes a list of ViewModels as the argument
         """
 
         async def _insert_parent_func(self, func):
@@ -368,7 +368,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
     async def visit_aggregate(self, query):
         await self.visit_child(query.child)
         self._aggregate()
-        self.root = Item({None: self.iter})
+        self.root = ViewModel({None: self.iter})
         self.iter = iter([self.root])
         self.parent_iter = None
 

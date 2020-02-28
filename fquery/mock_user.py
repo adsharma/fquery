@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import random
 
-from item import Item
+from view_model import ViewModel
 from query import Query, QueryableOp
 from walk import ViewModel
 
@@ -15,7 +15,7 @@ class MockUser(ViewModel):
 
     def get(self):
         id = self.id
-        return Item(
+        return ViewModel(
             {
                 ":id": id,
                 "name": "id%d" % id,

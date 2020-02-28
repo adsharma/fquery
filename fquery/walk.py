@@ -19,16 +19,12 @@ from datetime import datetime
 from inspect import isasyncgen, iscoroutine, isfunction, isgenerator, isasyncgenfunction
 from typing import Any, AsyncGenerator, ItemsView, List, Optional, Set, Union
 
-from item import IDKEY, Item
 from resolve import async_resolve_field, resolve_field
+from view_model import ViewModel
 from visitor import Visitor
 
 
 class EdgeContext:
-    pass
-
-
-class ViewModel:
     pass
 
 
@@ -58,7 +54,7 @@ async def is_leaf(d):
             for i in v:
                 if isinstance(i, ViewModel):
                     return False
-                if isinstance(i, dict) and IDKEY in i:
+                if isinstance(i, dict) and ViewModel.IDKEY in i:
                     return False
     return True
 
@@ -129,7 +125,7 @@ async def leaf_it(d):
 
 def _path_walk(path, d):
     if isinstance(d, dict):
-        if IDKEY in d:
+        if ViewModel.IDKEY in d:
             yield (path, d)
         else:
             for k, v in d.items():
@@ -147,7 +143,7 @@ def _path_walk(path, d):
 
 def dict_to_item(d):
     if isinstance(d, dict):
-        return Item({k: dict_to_item(v) for k, v in d.items()})
+        return ViewModel({k: dict_to_item(v) for k, v in d.items()})
     elif isinstance(d, collections.Iterable) and not isinstance(d, str):
         return list(map(dict_to_item, d))
     else:
@@ -166,7 +162,7 @@ primitive = (str, int, bool, float, datetime)
 Primitive = Union[str, int, bool, float, datetime]
 # This should be insync with what json.dumps() accepts.
 # Also see util/json.py
-Tree = Union[Item, collections.Iterable, Primitive, None]
+Tree = Union[ViewModel, collections.Iterable, Primitive, None]
 
 
 INDENT = "  "
@@ -279,7 +275,7 @@ async def resolve_parallel_dict(
     "If edges is not None, resolve only the keys in that set. Otherwise resolve everything"
     awaitables = []
     non_awaitables = []
-    if isinstance(d, ViewModel):
+    if False:  # Should be if isinstance(d, ViewModel). Needs more work.
         if keys is None:
             keys = await ViewModel.async_project_properties(d)
         items = ((k, d[k]) for k in keys)
@@ -362,11 +358,11 @@ async def _materialize_walk_obj(d) -> Tree:
 
 async def _materialize_walk(d) -> Tree:
     if isinstance(d, ViewModel) or isinstance(d, dict):
-        out = Item({})
+        out = ViewModel({})
         trimmed_keys: List[Any] = []
         # Resolve the first level of awaitables
         keys = None
-        if isinstance(d, ViewModel):
+        if False:  # Should be if isinstance(d, ViewModel). Needs more work.
             if d._all_edges:
                 keys = set(d.__keys__)
             else:
@@ -411,7 +407,7 @@ async def _materialize_walk(d) -> Tree:
 
 def _materialize_walk_sync(d) -> Tree:
     if isinstance(d, ViewModel) or isinstance(d, dict):
-        out = Item({})
+        out = ViewModel({})
         trimmed_keys: List[Any] = []
         if isinstance(d, ViewModel):
             items = ViewModel.items(d)
