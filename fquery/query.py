@@ -9,6 +9,7 @@ from types import FunctionType
 
 from async_test import wait_for
 from execute import AbstractSyntaxTreeVisitor
+from sql_builder import SQLBuilderVisitor
 from walk import (
     EdgeContext,
     ViewModel,
@@ -208,6 +209,11 @@ class Query:
         visitor = PrintASTVisitor([])
         wait_for(visitor.visit(self))
         return visitor.tree
+
+    def to_sql(self) -> str:
+        visitor = SQLBuilderVisitor([])
+        wait_for(visitor.visit(self))
+        return visitor.sql
 
     def batch_resolve_objs(self) -> List[Dict[str, List[ViewModel]]]:
         return [{str(None): [o for o in (self.resolve_obj(i) for i in self.ids) if o]}]
