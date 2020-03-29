@@ -2,8 +2,10 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import ast
 import itertools
 from typing import Dict, List, Optional, Tuple, Type, Union
+from types import FunctionType
 
 from async_test import wait_for
 from execute import AbstractSyntaxTreeVisitor
@@ -83,6 +85,12 @@ class Query:
         else:
             return query_name
 
+    def leaf_type(self) -> str:
+        "Transforms UserQuery -> user"
+        if self.OP != QueryableOp.LEAF:
+            return "x"
+        return self.__class__.__name__[: len("Query") - 1].lower()
+
     # The meaning of child vs parent depends on your perspective
     # Query Author writes: a.b().c() where a is the parent of b etc
     # AST construction: a.b().c() where b is the child of a etc
@@ -99,7 +107,7 @@ class Query:
     def project(self, projector) -> "ProjectQueryable":
         return ProjectQueryable(self, projector)
 
-    def where(self, predicate) -> "WhereQueryable":
+    def where(self, predicate: ast.Expr) -> "WhereQueryable":
         return WhereQueryable(self, predicate)
 
     def take(self, count: int = 1) -> "TakeQueryable":
@@ -114,7 +122,7 @@ class Query:
     def let(self, old: str, new: str) -> "LetQueryable":
         return LetQueryable(self, old, new)
 
-    def order_by(self, key) -> "OrderbyQueryable":
+    def order_by(self, key: ast.Expr) -> "OrderbyQueryable":
         return OrderbyQueryable(self, key)
 
     def cond(self, key=":type", switch: SwitchType = ()) -> "CondQueryable":
@@ -244,9 +252,15 @@ class ProjectQueryable(Query):
 class WhereQueryable(Query):
     OP = QueryableOp.WHERE
 
-    def __init__(self, child: Query, predicate) -> None:
+    def __init__(self, child: Query, predicate: ast.Expr) -> None:
         super(WhereQueryable, self).__init__(child)
-        self.predicate = predicate
+        self._expr = predicate
+        # Create a lambda from the predicate. This can be dangerous due
+        # to predicates trying to exploit. Need validation of input
+        # TODO: Look at pandas.eval
+        leaf_name = child.leaf_type()
+        code = compile(f"lambda {leaf_name}: " + predicate.value, "<string>", "exec")
+        self.predicate = FunctionType(code.co_consts[0], {}, None)
 
     def __str__(self) -> str:
         return Query.__str__(self) + " " + str(self.predicate)
@@ -339,9 +353,15 @@ class LetQueryable(Query):
 class OrderbyQueryable(Query):
     OP = QueryableOp.ORDER_BY
 
-    def __init__(self, child: Query, key) -> None:
+    def __init__(self, child: Query, key: ast.Expr) -> None:
         super(OrderbyQueryable, self).__init__(child)
-        self.key = key
+        self._expr = key
+        # Create a lambda from the key. This can be dangerous due
+        # to predicates trying to exploit. Need validation of input
+        # TODO: Look at pandas.eval
+        leaf_name = child.leaf_type()
+        code = compile(f"lambda {leaf_name}: " + key.value, "<string>", "exec")
+        self.key = FunctionType(code.co_consts[0], {}, None)
 
     def __str__(self) -> str:
         return Query.__str__(self) + " " + str(self.key)

@@ -161,13 +161,15 @@ class QueryTests(unittest.TestCase):
 
     @async_test
     async def test_where(self):
-        resp = await UserQuery(range(1, 4)).where(lambda x: x["age"] == 16).to_json()
+        resp = (
+            await UserQuery(range(1, 4)).where(ast.Expr("user.age == 16")).to_json()
+        )
         expected = [{"None": [{":id": 2, "name": "id2", ":type": 2, "age": 16}]}]
         self.assertEqual(expected, resp)
 
     @async_test
     async def test_order_by(self):
-        resp = await UserQuery(range(1, 4)).order_by(lambda x: x["age"]).to_json()
+        resp = await UserQuery(range(1, 4)).order_by(ast.Expr("user.age")).to_json()
         expected = [
             {
                 "None": [
