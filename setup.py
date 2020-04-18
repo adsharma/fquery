@@ -21,6 +21,8 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
     test_suite="tests",
+    install_requires=["aioitertools"],
+    extras_require={"SQL": ["pypika >= 0.36.5"]},
 )

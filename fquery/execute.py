@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 # Copyright (c) 2016-present, Facebook, Inc. All rights reserved.
 import aitertools
+import aioitertools
 import asyncio
 import collections
 import heapq
@@ -34,8 +35,8 @@ def projection_cmp(keys: List[str]) -> Callable[[ViewModel], List]:
 
 async def flatten(iterable):
     "Flatten one level of nesting"
-    async for aiter in aitertools.iterate(iterable):
-        async for i in aitertools.iterate(aiter):
+    async for aiter in aioitertools.iter(iterable):
+        async for i in aioitertools.iter(aiter):
             yield i
 
 
@@ -84,7 +85,7 @@ def merge_dicts_iter(x, y):
 
 async def union_iters(x):
     result = {}
-    async for i in aitertools.iterate(x):
+    async for i in aioitertools.iter(x):
         if isinstance(i, dict):
             i = await materialize_walk(i)
             result = union_dicts(result, i)
@@ -188,7 +189,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
                 quickly locate the parents of leaf nodes.
             """
             if not self.parent_iter or not self.parent_key:
-                self.iter = aitertools.map(
+                self.iter = aioitertools.map(
                     partial(apply_func, map_func=self.map_func), self.iter
                 )
                 self.root = self.iter
@@ -214,9 +215,9 @@ class AbstractSyntaxTreeVisitor(Visitor):
         await self.visit(query.child)
 
         async def _func(it):
-            it = aitertools.iterate(it)
+            it = aioitertools.iter(it)
             # islice takes start, stop
-            async for i in aitertools.islice(it, 0, query._count):
+            async for i in aioitertools.islice(it, 0, query._count):
                 yield i
 
         self.map_func = _func
@@ -226,9 +227,9 @@ class AbstractSyntaxTreeVisitor(Visitor):
         await self.visit(query.child)
 
         async def _func(it):
-            it = aitertools.iterate(it)
+            it = aioitertools.iter(it)
             # islice takes start, stop
-            async for i in aitertools.islice(it, query.skip, None):
+            async for i in aioitertools.islice(it, query.skip, None):
                 yield i
 
         self.map_func = _func
@@ -238,7 +239,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
         await self.visit(query.child)
 
         async def _func(it):
-            it = aitertools.iterate(it)
+            it = aioitertools.iter(it)
             async for item in it:
                 if item:
                     yield {k: item[k] for k in query.projector}
@@ -250,7 +251,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
         await self.visit(query.child)
 
         async def _func(it):
-            it = aitertools.iterate(it)
+            it = aioitertools.iter(it)
             yield {query.key: it}
 
         self.map_func = _func
@@ -260,7 +261,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
         await self.visit(query.child)
 
         async def _func(it):
-            it = aitertools.iterate(it)
+            it = aioitertools.iter(it)
             async for item in it:
                 if item:
                     yield {
@@ -276,7 +277,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
         await self.visit(query.child)
 
         async def _func(it):
-            it = aitertools.iterate(it)
+            it = aioitertools.iter(it)
             count = 0
             async for _ in it:
                 count += 1
@@ -289,7 +290,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
         await self.visit(query.child)
 
         async def _func(it):
-            it = aitertools.iterate(it)
+            it = aioitertools.iter(it)
             async for item in it:
                 if query.predicate(item):
                     yield item
@@ -301,7 +302,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
         await self.visit(query.child)
 
         async def _key_func(it):
-            it = aitertools.iterate(it)
+            it = aioitertools.iter(it)
             heap = [
                 (query.key(materialized), materialized) async for materialized in it
             ]
@@ -311,7 +312,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
                 yield materialized
 
         async def _async_key_func(it):
-            it = aitertools.iterate(it)
+            it = aioitertools.iter(it)
             materialized = [i async for i in it]  # TODO: eliminate copy
             keys = (query.key(item) for item in materialized)
             keys = await asyncio.gather(*keys)
@@ -401,7 +402,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
 
     @staticmethod
     async def _visit_edge(it, key, query):
-        async for i, res in aitertools.zip(it, query.iter()):
+        async for i, res in aioitertools.zip(it, query.iter()):
             i[str(key)] = res
             if VISITED_EDGES_KEY in i:
                 i[VISITED_EDGES_KEY].append(key)
