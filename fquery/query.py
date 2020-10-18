@@ -226,22 +226,19 @@ class Query:
         if not self.parent_edge:
             yield self.batch_resolve_objs()[0]
         else:
-            resolved = await asyncio.gather(
-                *[
-                    self.resolve(
-                        item, self.parent_edge.edge_name, self.parent_edge._ctx
-                    )
-                    async for item in self._items
-                ]
-            )
-            for view_models in resolved:
-                yield view_models
+            # TODO: Use asyncio.gather or similar to paralellize
+            async for item in self._items:
+                async for i in self.resolve(
+                    item, self.parent_edge.edge_name, self.parent_edge._ctx
+                ):
+                    yield i
 
     async def resolve(self, item, key, edge_ctx):
         if isinstance(item, ViewModel):
-            return await item.resolve_edge(key, edge_ctx)
+            async for i in item.resolve_edge(key, edge_ctx):
+                yield i
         else:
-            return item
+            yield item
 
 
 class ProjectQueryable(Query):

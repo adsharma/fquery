@@ -6,12 +6,8 @@ import random
 
 from dataclasses import dataclass
 from query import Query, QueryableOp
-from typing import List
-from view_model import ViewModel
-
-
-def edge(func):
-    return func
+from typing import List, Optional
+from view_model import edge, ViewModel
 
 
 @dataclass
@@ -24,11 +20,10 @@ class MockUser(ViewModel):
         yield [MockUser.get(m) for m in range(3 * self.id, 3 * self.id + 3)]
 
     @staticmethod
-    def get(id):
+    def get(id: int) -> "MockUser":
         # A typical implementation may fetch fields from a database
         # based on self.id here
         u = MockUser(id=id, name=f"id{id}", age=random.choice([16, 17, 18]))
-        u._type = random.choice([1, 2])
         return u
 
 
@@ -38,17 +33,10 @@ class UserQuery(Query):
     def __init__(self, ids=None, items=None):
         super().__init__(None, ids, items)
 
-    def edge(self, edge_name):
-        if edge_name == "friends":
-            self._unbound_class = UserQuery
-        return super(UserQuery, self).edge(edge_name)
+    @staticmethod
+    def resolve_obj(_id: int, edge: str = "") -> Optional[ViewModel]:
+        return MockUser.get(_id)
 
-    async def iter(self):
-        if not self.parent_edge:
-            yield {str(None): [MockUser.get(i) for i in self.ids]}
-        else:
-            async for item in self._items:
-                async for i in item.friends():
-                    yield i
 
-UserQuery.EDGE_NAME_TO_QUERY_TYPE = { "friends" : UserQuery }
+# TODO: Handle this via @edge decorator
+UserQuery.EDGE_NAME_TO_QUERY_TYPE = {"friends": UserQuery}

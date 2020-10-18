@@ -49,3 +49,21 @@ class ViewModel(OrderedDict):
     def __setattr__(self, name, value):
         super().__setattr__(name, value)
         self.__setitem__(name, value)
+
+    async def resolve_edge(self, edge_name: str, edge_ctx):
+        async for i in self.__getattribute__(edge_name)():
+            yield i
+
+
+def edge(fn):
+    def decorated(*args, **kwargs):
+        function_instance = fn(*args, **kwargs)
+
+        async def inner():
+            async for v in function_instance:
+                yield v
+
+        return inner()
+
+    # Populate EDGE_NAME_TO_QUERY_TYPE here
+    return decorated
