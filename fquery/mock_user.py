@@ -6,31 +6,32 @@ import random
 
 from dataclasses import dataclass
 from query import Query, QueryableOp
-from view_model import ViewModel
+from typing import List, Optional
+from view_model import edge, ViewModel
 
 
 @dataclass
-class MockUserBase(ViewModel):
+class MockUser(ViewModel):
     name: str
     age: int
 
+    @edge
+    async def friends(self) -> List["MockUser"]:
+        yield [MockUser.get(m) for m in range(3 * self.id, 3 * self.id + 3)]
 
-class MockUser(MockUserBase):
-    def __init__(self, id):
-        ViewModel().__init__()
-        self.id = id
+    @edge
+    async def reviews(self) -> List["MockReview"]:
+        yield [
+            MockReview.get(m) for m in range(3 * self.id + 300, 3 * self.id + 300 + 5)
+        ]
 
-    def __setattr__(self, name, value):
-        super().__setattr__(name, value)
-        ViewModel.__setitem__(self, name, value)
-
-    def get(self):
+    @staticmethod
+    def get(id: int) -> "MockUser":
         # A typical implementation may fetch fields from a database
         # based on self.id here
-        self.name = f"id{self.id}"
-        self._type = random.choice([1, 2])
-        self.age = random.choice([16, 17, 18])
-        return self
+        u = MockUser(id=id, name=f"id{id}", age=random.choice([16, 17, 18]))
+        u._type = 1
+        return u
 
 
 class UserQuery(Query):
@@ -39,17 +40,42 @@ class UserQuery(Query):
     def __init__(self, ids=None, items=None):
         super().__init__(None, ids, items)
 
-    def edge(self, edge_name):
-        if edge_name == "friends":
-            self._unbound_class = UserQuery
-        return super(UserQuery, self).edge(edge_name)
+    @staticmethod
+    def resolve_obj(_id: int, edge: str = "") -> Optional[ViewModel]:
+        return MockUser.get(_id)
 
-    async def iter(self):
-        if not self.parent_edge:
-            yield {str(None): [MockUser(i).get() for i in self.ids]}
-        else:
-            async for item in self._items:
-                yield [
-                    MockUser(m).get()
-                    for m in range(3 * item[":id"], 3 * item[":id"] + 3)
-                ]
+
+@dataclass
+class MockReview(ViewModel):
+    business: str
+    rating: int
+    author: MockUser
+
+    @edge
+    async def author(self) -> MockUser:
+        yield self.author
+
+    @staticmethod
+    def get(id: int) -> "MockReview":
+        # A typical implementation may fetch fields from a database
+        # based on self.id here
+        r = MockReview(
+            id=id, business=f"business{id}", rating=random.choice(range(1, 6))
+        )
+        r._type = 2
+        return r
+
+
+class ReviewQuery(Query):
+    OP = QueryableOp.LEAF
+
+    def __init__(self, ids=None, items=None):
+        super().__init__(None, ids, items)
+
+    @staticmethod
+    def resolve_obj(_id: int, edge: str = "") -> Optional[ViewModel]:
+        return MockReview.get(_id)
+
+
+# TODO: Handle this via @edge decorator
+UserQuery.EDGE_NAME_TO_QUERY_TYPE = {"friends": UserQuery, "reviews": ReviewQuery}
