@@ -4,15 +4,22 @@
 # LICENSE file in the root directory of this source tree.
 # Copyright (c) 2016-present, Facebook, Inc. All rights reserved.
 from collections import OrderedDict
+from dataclasses import dataclass
 
 
+@dataclass
 class ViewModel(OrderedDict):
     """Like an OrderedDict, but treats :id as special for
        equality purposes and hashable (so you can create sets).
     """
 
+    id: int
+
     IDKEY = ":id"
     TYPE_KEY = ":type"
+
+    def __init__(self, other_dict):
+        super().__init__(other_dict)
 
     def __lt__(self, other):
         return self[ViewModel.IDKEY] < other[ViewModel.IDKEY]
@@ -38,3 +45,7 @@ class ViewModel(OrderedDict):
         elif name == "_type":
             name = ViewModel.TYPE_KEY
         super().__setitem__(name, value)
+
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+        self.__setitem__(name, value)

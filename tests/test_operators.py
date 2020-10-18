@@ -164,7 +164,7 @@ class QueryTests(unittest.TestCase):
         resp = (
             await UserQuery(range(1, 4)).where(ast.Expr("user.age == 16")).to_json()
         )
-        expected = [{"None": [{":id": 2, "name": "id2", ":type": 2, "age": 16}]}]
+        expected = [{"None": [{":id": 1, "name": "id1", ":type": 2, "age": 16}]}]
         self.assertEqual(expected, resp)
 
     @async_test
@@ -173,8 +173,8 @@ class QueryTests(unittest.TestCase):
         expected = [
             {
                 "None": [
-                    {":id": 2, "name": "id2", ":type": 2, "age": 16},
-                    {":id": 1, "name": "id1", ":type": 1, "age": 17},
+                    {":id": 1, "name": "id1", ":type": 2, "age": 16},
+                    {":id": 2, "name": "id2", ":type": 1, "age": 17},
                     {":id": 3, "name": "id3", ":type": 2, "age": 18},
                 ]
             }

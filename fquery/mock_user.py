@@ -6,31 +6,30 @@ import random
 
 from dataclasses import dataclass
 from query import Query, QueryableOp
+from typing import List
 from view_model import ViewModel
 
 
+def edge(func):
+    return func
+
+
 @dataclass
-class MockUserBase(ViewModel):
+class MockUser(ViewModel):
     name: str
     age: int
 
+    @edge
+    async def friends(self) -> List["MockUser"]:
+        yield [MockUser.get(m) for m in range(3 * self.id, 3 * self.id + 3)]
 
-class MockUser(MockUserBase):
-    def __init__(self, id):
-        ViewModel().__init__()
-        self.id = id
-
-    def __setattr__(self, name, value):
-        super().__setattr__(name, value)
-        ViewModel.__setitem__(self, name, value)
-
-    def get(self):
+    @staticmethod
+    def get(id):
         # A typical implementation may fetch fields from a database
         # based on self.id here
-        self.name = f"id{self.id}"
-        self._type = random.choice([1, 2])
-        self.age = random.choice([16, 17, 18])
-        return self
+        u = MockUser(id=id, name=f"id{id}", age=random.choice([16, 17, 18]))
+        u._type = random.choice([1, 2])
+        return u
 
 
 class UserQuery(Query):
@@ -46,10 +45,10 @@ class UserQuery(Query):
 
     async def iter(self):
         if not self.parent_edge:
-            yield {str(None): [MockUser(i).get() for i in self.ids]}
+            yield {str(None): [MockUser.get(i) for i in self.ids]}
         else:
             async for item in self._items:
-                yield [
-                    MockUser(m).get()
-                    for m in range(3 * item[":id"], 3 * item[":id"] + 3)
-                ]
+                async for i in item.friends():
+                    yield i
+
+UserQuery.EDGE_NAME_TO_QUERY_TYPE = { "friends" : UserQuery }
