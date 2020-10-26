@@ -55,11 +55,12 @@ class UserQuery:
 class MockReview:
     business: str
     rating: int
-    author: MockUser
 
     @edge
     async def author(self) -> MockUser:
-        yield self.author
+        # TODO: Figure out how to make this work for relational vs graph
+        self._author = 1
+        yield MockUser.get(self._author)
 
     @staticmethod
     def get(id: int) -> "MockReview":
