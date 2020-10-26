@@ -2,16 +2,19 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+from __future__ import annotations
+
 import random
 
 from dataclasses import dataclass
-from query import Query, QueryableOp
+from query import query, Query, QueryableOp
 from typing import List, Optional
-from view_model import edge, ViewModel
+from view_model import edge, node, ViewModel
 
 
 @dataclass
-class MockUser(ViewModel):
+@node
+class MockUser:
     name: str
     age: int
 
@@ -34,11 +37,13 @@ class MockUser(ViewModel):
         return u
 
 
-class UserQuery(Query):
+@query
+class UserQuery:
     OP = QueryableOp.LEAF
+    TYPE = MockUser
 
     def __init__(self, ids=None, items=None):
-        super().__init__(None, ids, items)
+        Query.__init__(self, None, ids, items)
 
     @staticmethod
     def resolve_obj(_id: int, edge: str = "") -> Optional[ViewModel]:
@@ -46,7 +51,8 @@ class UserQuery(Query):
 
 
 @dataclass
-class MockReview(ViewModel):
+@node
+class MockReview:
     business: str
     rating: int
     author: MockUser
@@ -66,16 +72,14 @@ class MockReview(ViewModel):
         return r
 
 
-class ReviewQuery(Query):
+@query
+class ReviewQuery:
     OP = QueryableOp.LEAF
+    TYPE = MockReview
 
     def __init__(self, ids=None, items=None):
-        super().__init__(None, ids, items)
+        Query.__init__(self, None, ids, items)
 
     @staticmethod
     def resolve_obj(_id: int, edge: str = "") -> Optional[ViewModel]:
         return MockReview.get(_id)
-
-
-# TODO: Handle this via @edge decorator
-UserQuery.EDGE_NAME_TO_QUERY_TYPE = {"friends": UserQuery, "reviews": ReviewQuery}

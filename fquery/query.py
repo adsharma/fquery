@@ -4,7 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 import ast
 import itertools
-from typing import Dict, List, Optional, Tuple, Type, Union
+import traceback
+from typing import get_type_hints, Dict, ForwardRef, List, Optional, Tuple, Type, Union
 from types import FunctionType
 
 from async_test import wait_for
@@ -47,7 +48,9 @@ class Query:
     """
 
     OP: QueryableOp = QueryableOp.INVALID
-    EDGE_NAME_TO_QUERY_TYPE: Dict[str, Type["Query"]] = {}
+    EDGE_NAME_TO_RETURN_TYPE: Dict[str, Type["Query"]] = {}
+    ALL_QUERIES = []
+    CLASS_TO_QUERIES = {}
 
     def __init__(
         self,
@@ -92,6 +95,22 @@ class Query:
             return "x"
         return self.__class__.__name__[: len("Query") - 1].lower()
 
+    # TODO: @run_once
+    @staticmethod
+    def _populate_class_to_queries():
+        for kls in Query.ALL_QUERIES:
+            Query.CLASS_TO_QUERIES[kls.TYPE.__name__] = kls
+
+    @classmethod
+    def _edge_name_to_query_type(cls, edge_name: str) -> type:
+        if not Query.CLASS_TO_QUERIES:
+            Query._populate_class_to_queries()
+        try:
+            return Query.CLASS_TO_QUERIES[cls.EDGE_NAME_TO_RETURN_TYPE[edge_name]]
+        except KeyError:
+            traceback.print_exc()
+            return None
+
     # The meaning of child vs parent depends on your perspective
     # Query Author writes: a.b().c() where a is the parent of b etc
     # AST construction: a.b().c() where b is the child of a etc
@@ -130,8 +149,13 @@ class Query:
         return CondQueryable(self, key, switch)
 
     def edge(self, edge_name: str, edge_ctx: EdgeContext = None) -> "EdgeQueryable":
-        if edge_name in self.EDGE_NAME_TO_QUERY_TYPE:
-            self._unbound_class = self.EDGE_NAME_TO_QUERY_TYPE[edge_name]
+        cur_query = self
+        while cur_query.OP != QueryableOp.LEAF:
+            if hasattr(cur_query, "child"):
+                cur_query = cur_query.child
+            else:
+                break
+        self._unbound_class = cur_query._edge_name_to_query_type(edge_name)
         return EdgeQueryable(self, edge_name, self._unbound_class(self), edge_ctx)
 
     def union(self, *queries) -> "UnionQueryable":
@@ -239,6 +263,31 @@ class Query:
                 yield i
         else:
             yield item
+
+
+def query(cls):
+    def get_return_type(func):
+        ret = get_type_hints(func)["return"]
+        if hasattr(ret, "_name") and ret._name == "List":
+            ret = ret.__args__[0]
+        if isinstance(ret, ForwardRef):
+            return ret.__forward_arg__
+        if isinstance(ret, type):
+            return ret.__name__
+        return ret
+
+    cls = type(cls.__name__, (Query,), dict(cls.__dict__))
+    node_cls = cls.TYPE
+    edges = [
+        (name, func)
+        for name, func in node_cls.__dict__.items()
+        if hasattr(func, "_edge")
+    ]
+    cls.EDGE_NAME_TO_RETURN_TYPE = {
+        name: get_return_type(func._old) for name, func in edges
+    }
+    Query.ALL_QUERIES.append(cls)
+    return cls
 
 
 class ProjectQueryable(Query):

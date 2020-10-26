@@ -55,6 +55,11 @@ class ViewModel(OrderedDict):
             yield i
 
 
+def node(cls):
+    cls = type(cls.__name__, (ViewModel,), dict(cls.__dict__))
+    return cls
+
+
 def edge(fn):
     def decorated(*args, **kwargs):
         function_instance = fn(*args, **kwargs)
@@ -65,5 +70,6 @@ def edge(fn):
 
         return inner()
 
-    # Populate EDGE_NAME_TO_QUERY_TYPE here
+    decorated._edge = True
+    decorated._old = fn
     return decorated
