@@ -102,12 +102,14 @@ class QueryTests(unittest.TestCase):
         with open(os.path.join(TEST_DATA, "test_data_two_hop_project.txt")) as f:
             expected = ast.literal_eval(f.read())
         self.assertEqual(expected, resp)
+        self.assertEqual(str(expected), str(resp))
 
     def test_sync_two_hop_multiple_project(self):
         resp = (
             UserQuery([1])
             .edge("friends")
             .project(["age", ":id"])
+            .parent()
             .edge("friends")
             .project(["name", ":id"])
             .take(3)
@@ -119,6 +121,7 @@ class QueryTests(unittest.TestCase):
         ) as f:
             expected = ast.literal_eval(f.read())
         self.assertEqual(expected, resp)
+        self.assertEqual(str(expected), str(resp))
 
     def test_sync_edge_union(self):
         resp = (
