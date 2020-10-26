@@ -5,6 +5,7 @@
 # Copyright (c) 2016-present, Facebook, Inc. All rights reserved.
 from collections import OrderedDict
 from dataclasses import dataclass
+from resolve import VISITED_EDGES_KEY
 
 
 @dataclass
@@ -20,6 +21,7 @@ class ViewModel(OrderedDict):
 
     def __init__(self, other_dict):
         super().__init__(other_dict)
+        self.__visited_edges__ = set()
 
     def __lt__(self, other):
         return self[ViewModel.IDKEY] < other[ViewModel.IDKEY]
@@ -44,6 +46,8 @@ class ViewModel(OrderedDict):
             name = ViewModel.IDKEY
         elif name == "_type":
             name = ViewModel.TYPE_KEY
+        elif name == VISITED_EDGES_KEY:
+            return
         super().__setitem__(name, value)
 
     def __setattr__(self, name, value):
@@ -56,7 +60,11 @@ class ViewModel(OrderedDict):
 
 
 def node(cls):
-    cls = type(cls.__name__, (ViewModel,), dict(cls.__dict__))
+    def post_init(self):
+        ViewModel.__init__(self, {})
+
+    extra = {"__post_init__": post_init}
+    cls = type(cls.__name__, (ViewModel,), {**cls.__dict__, **extra})
     return cls
 
 
