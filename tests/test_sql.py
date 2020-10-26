@@ -8,7 +8,7 @@ import random
 import unittest
 
 from tests.mock_user import UserQuery
-from async_test import async_test
+from tests.async_test import async_test
 from pypika import Query, Tables
 
 

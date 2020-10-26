@@ -4,8 +4,8 @@
 # LICENSE file in the root directory of this source tree.
 from collections.abc import AsyncGenerator
 
-from async_test import wait_for
-from asyncio import iscoroutinefunction, wait_for
+from asyncio import iscoroutinefunction
+from async_utils import wait_for
 
 
 VISITED_EDGES_KEY = "__visited_edges__"

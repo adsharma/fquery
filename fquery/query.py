@@ -5,10 +5,11 @@
 import ast
 import itertools
 import traceback
+
+from async_utils import wait_for
 from typing import get_type_hints, Dict, ForwardRef, List, Optional, Tuple, Type, Union
 from types import FunctionType
 
-from async_test import wait_for
 from execute import AbstractSyntaxTreeVisitor
 from sql_builder import SQLBuilderVisitor
 from walk import (
