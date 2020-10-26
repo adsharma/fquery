@@ -114,7 +114,7 @@ class Query:
 
     # The meaning of child vs parent depends on your perspective
     # Query Author writes: a.b().c() where a is the parent of b etc
-    # AST construction: a.b().c() where b is the child of a etc
+    # AST construction: a.b().c() where b is the child of c etc
     #
     # Since this API is exposed to Query Author, we use their perspective
     def parent(self) -> "Query":
