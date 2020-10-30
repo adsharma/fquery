@@ -6,7 +6,7 @@ import unittest
 import asyncio
 import inspect
 
-from async_test import async_test
+from tests.async_test import async_test
 from walk import _materialize_walk_sync, materialize_walk
 
 

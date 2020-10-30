@@ -406,6 +406,8 @@ class AbstractSyntaxTreeVisitor(Visitor):
             i[str(key)] = res
             if VISITED_EDGES_KEY in i:
                 i[VISITED_EDGES_KEY].append(key)
+            elif hasattr(i, VISITED_EDGES_KEY):
+                i.__visited_edges__.add(key)
             yield i
 
     async def visit_edge(self, query):

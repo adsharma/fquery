@@ -324,7 +324,7 @@ async def _materialize_walk_obj(d) -> Tree:
         vals = await asyncio.gather(*(_materialize_walk_obj(v) for k, v in edges))
         for (k, _), val in zip(edges, vals):
             if k in edge_set:
-                d[k] = val
+                setattr(d, k, val)
         return d
     elif isinstance(d, dict):
         # Resolve the first level of awaitables
