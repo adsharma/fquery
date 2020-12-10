@@ -38,6 +38,7 @@ class QueryableOp(IntEnum):
     NEST = 10
     LET = 11
     ORDER_BY = 12
+    GROUP_BY = 13
 
 
 SwitchType = Union[Tuple, Tuple[int, "Query"]]
@@ -145,6 +146,9 @@ class Query:
 
     def order_by(self, key: ast.Expr) -> "OrderbyQueryable":
         return OrderbyQueryable(self, key)
+
+    def group_by(self, key: ast.Expr) -> "OrderedGroupbyQueryable":
+        return OrderedGroupbyQueryable(OrderbyQueryable(self, key), key)
 
     def cond(self, key=":type", switch: SwitchType = ()) -> "CondQueryable":
         return CondQueryable(self, key, switch)
@@ -412,6 +416,26 @@ class OrderbyQueryable(Query):
         # Create a lambda from the key. This can be dangerous due
         # to predicates trying to exploit. Need validation of input
         # TODO: Look at pandas.eval
+        leaf_name = child.leaf_type()
+        code = compile(f"lambda {leaf_name}: " + key.value, "<string>", "exec")
+        self.key = FunctionType(code.co_consts[0], {}, None)
+
+    def __str__(self) -> str:
+        return Query.__str__(self) + " " + str(self.key)
+
+
+class OrderedGroupbyQueryable(Query):
+    OP = QueryableOp.GROUP_BY
+
+    def __init__(self, child: Query, key: ast.Expr) -> None:
+        super(OrderedGroupbyQueryable, self).__init__(child)
+        self._expr = key
+        # Create a lambda from the key. This can be dangerous due
+        # to predicates trying to exploit. Need validation of input
+        # TODO: Look at pandas.eval
+        # Handle the case of many nested operators
+        while child and child.OP != QueryableOp.LEAF:
+            child = child.child
         leaf_name = child.leaf_type()
         code = compile(f"lambda {leaf_name}: " + key.value, "<string>", "exec")
         self.key = FunctionType(code.co_consts[0], {}, None)

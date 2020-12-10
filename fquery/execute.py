@@ -332,6 +332,35 @@ class AbstractSyntaxTreeVisitor(Visitor):
 
         self.map_func = _func
 
+    @nested
+    async def visit_group_by(self, query):
+        await self.visit(query.child)
+
+        async def _key_func(it):
+            it = aioitertools.iter(it)
+            materialized = [i async for i in it]  # TODO: eliminate copy
+            for k, g in itertools.groupby(materialized, key=query.key):
+                yield (k, tuple(g))
+
+        async def _async_key_func(it):
+            it = aioitertools.iter(it)
+            materialized = [i async for i in it]  # TODO: eliminate copy
+            keys = (query.key(item) for item in materialized)
+            keys = await asyncio.gather(*keys)
+            for k, g in itertools.groupby(zip(keys, materialized), key=operator.itemgetter(0)):
+                yield (k, tuple(g))
+
+        async def _func(it):
+            if asyncio.iscoroutinefunction(query.key):
+                async for item in _async_key_func(it):
+                    yield item
+            else:
+                async for item in _key_func(it):
+                    yield item
+
+        self.map_func = _func
+
+
     async def visit_union(self, query):
         """Merge sort. Expects input to be sorted already"""
         await self.visit_child(query.child)
