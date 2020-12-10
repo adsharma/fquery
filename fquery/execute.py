@@ -314,7 +314,10 @@ class AbstractSyntaxTreeVisitor(Visitor):
         async def _async_key_func(it):
             it = aioitertools.iter(it)
             materialized = [i async for i in it]  # TODO: eliminate copy
-            keys = (query.key(item) for item in materialized)
+            keys = [query.key(item) for item in materialized]
+            # Needs to await twice - once for async wrapper in query.py
+            # and a second time to resolve the async property to get the key
+            keys = await asyncio.gather(*keys)
             keys = await asyncio.gather(*keys)
             heap = [(y, x) for x, y in enumerate(keys)]
             heapq.heapify(heap)
@@ -345,10 +348,15 @@ class AbstractSyntaxTreeVisitor(Visitor):
         async def _async_key_func(it):
             it = aioitertools.iter(it)
             materialized = [i async for i in it]  # TODO: eliminate copy
-            keys = (query.key(item) for item in materialized)
+            keys = [query.key(item) for item in materialized]
+            # Needs to await twice - once for async wrapper in query.py
+            # and a second time to resolve the async property to get the key
             keys = await asyncio.gather(*keys)
-            for k, g in itertools.groupby(zip(keys, materialized), key=operator.itemgetter(0)):
-                yield (k, tuple(g))
+            keys = await asyncio.gather(*keys)
+            for k, g in itertools.groupby(
+                zip(keys, materialized), key=operator.itemgetter(0)
+            ):
+                yield (k, [pair[1] for pair in g])
 
         async def _func(it):
             if asyncio.iscoroutinefunction(query.key):
@@ -359,7 +367,6 @@ class AbstractSyntaxTreeVisitor(Visitor):
                     yield item
 
         self.map_func = _func
-
 
     async def visit_union(self, query):
         """Merge sort. Expects input to be sorted already"""

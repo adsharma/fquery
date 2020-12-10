@@ -53,6 +53,7 @@ class Query:
     EDGE_NAME_TO_RETURN_TYPE: Dict[str, Type["Query"]] = {}
     ALL_QUERIES = []
     CLASS_TO_QUERIES = {}
+    _TEMP_COUNTER = 0
 
     def __init__(
         self,
@@ -96,6 +97,11 @@ class Query:
         if self.OP != QueryableOp.LEAF:
             return "x"
         return self.__class__.__name__[: len("Query") - 1].lower()
+
+    @classmethod
+    def _get_temp(cls) -> int:
+        cls._TEMP_COUNTER += 1
+        return cls._TEMP_COUNTER
 
     # TODO: @run_once
     @staticmethod
@@ -417,8 +423,19 @@ class OrderbyQueryable(Query):
         # to predicates trying to exploit. Need validation of input
         # TODO: Look at pandas.eval
         leaf_name = child.leaf_type()
-        code = compile(f"lambda {leaf_name}: " + key.value, "<string>", "exec")
-        self.key = FunctionType(code.co_consts[0], {}, None)
+        # TODO: use something more robust instead of naming convention
+        if "async" in key.value:
+            number = self._get_temp()
+            code = compile(
+                f"async def _func{number}({leaf_name}): return {key.value}",
+                "<string>",
+                "exec",
+                flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+            )
+            self.key = FunctionType(code.co_consts[0], {}, None)
+        else:
+            code = compile(f"lambda {leaf_name}: {key.value}", "<string>", "exec")
+            self.key = FunctionType(code.co_consts[0], {}, None)
 
     def __str__(self) -> str:
         return Query.__str__(self) + " " + str(self.key)
@@ -437,8 +454,19 @@ class OrderedGroupbyQueryable(Query):
         while child and child.OP != QueryableOp.LEAF:
             child = child.child
         leaf_name = child.leaf_type()
-        code = compile(f"lambda {leaf_name}: " + key.value, "<string>", "exec")
-        self.key = FunctionType(code.co_consts[0], {}, None)
+        # TODO: use something more robust instead of naming convention
+        if "async" in key.value:
+            number = self._get_temp()
+            code = compile(
+                f"async def _func{number}({leaf_name}): return {key.value}",
+                "<string>",
+                "exec",
+                flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+            )
+            self.key = FunctionType(code.co_consts[0], {}, None)
+        else:
+            code = compile(f"lambda {leaf_name}: {key.value}", "<string>", "exec")
+            self.key = FunctionType(code.co_consts[0], {}, None)
 
     def __str__(self) -> str:
         return Query.__str__(self) + " " + str(self.key)

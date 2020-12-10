@@ -233,6 +233,42 @@ class QueryTests(unittest.TestCase):
             }
         ]
         self.assertEqual(expected, resp)
+        # Test the async version
+        resp2 = (
+            await UserQuery(range(1, 10)).group_by(ast.Expr("user.async_age")).to_json()
+        )
+        # Can't use expected because new random users are generated for the second query
+        expected2 = [
+            {
+                "None": [
+                    [
+                        16,
+                        [
+                            {":id": 2, "name": "id2", "age": 16, ":type": 1},
+                            {":id": 4, "name": "id4", "age": 16, ":type": 1},
+                            {":id": 5, "name": "id5", "age": 16, ":type": 1},
+                            {":id": 9, "name": "id9", "age": 16, ":type": 1},
+                        ],
+                    ],
+                    [
+                        17,
+                        [
+                            {":id": 7, "name": "id7", "age": 17, ":type": 1},
+                            {":id": 8, "name": "id8", "age": 17, ":type": 1},
+                        ],
+                    ],
+                    [
+                        18,
+                        [
+                            {":id": 1, "name": "id1", "age": 18, ":type": 1},
+                            {":id": 3, "name": "id3", "age": 18, ":type": 1},
+                            {":id": 6, "name": "id6", "age": 18, ":type": 1},
+                        ],
+                    ],
+                ]
+            }
+        ]
+        self.assertEqual(expected2, resp2)
 
     @async_test
     async def test_as_dict(self):

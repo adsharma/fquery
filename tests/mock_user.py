@@ -18,6 +18,10 @@ class MockUser:
     name: str
     age: int
 
+    @property
+    async def async_age(self) -> int:
+        return self.age
+
     @edge
     async def friends(self) -> List["MockUser"]:
         yield [MockUser.get(m) for m in range(3 * self.id, 3 * self.id + 3)]
