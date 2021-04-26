@@ -13,10 +13,17 @@ mapping functionality is not included in this release.
 Requires python3.x
 
 ```
-./setup.py build
-./setup.py test
-./setup.py install
+pip3 install fquery
 ```
+
+Running tests:
+
+```
+alias t=pytest-3
+t
+```
+
+You can also run it via tox.
 
 # License
 
