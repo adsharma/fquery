@@ -13,6 +13,7 @@ setuptools.setup(
     name="fquery",
     version="0.1",
     description="A graph query engine",
+    url="https://github.com/adsharma/fquery",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
