@@ -6,10 +6,11 @@
 import aitertools
 import aioitertools
 import asyncio
-import collections
 import heapq
 import itertools
 import operator
+
+from collections.abc import Iterable
 from functools import partial
 from typing import Any, AsyncGenerator, Callable, Iterable, List
 
@@ -99,8 +100,7 @@ def union_dicts(x: dict, y: dict) -> dict:
     z = {
         k: flatten([x[k], y[k]])
         for k in common_keys
-        if isinstance(x[k], collections.Iterable)
-        and isinstance(y[k], collections.Iterable)
+        if isinstance(x[k], Iterable) and isinstance(y[k], Iterable)
     }
     # TODO: (1) the union of two dict needs to be well-defined
     #       (2) support recursive union

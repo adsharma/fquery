@@ -10,11 +10,12 @@
    above, materialzie all the lazy operators, print values and print types.
 """
 import asyncio
-import collections
 import itertools
 import inspect
 import re
 import types
+
+from collections.abc import Iterable
 from datetime import datetime
 from inspect import isasyncgen, iscoroutine, isfunction, isgenerator, isasyncgenfunction
 from typing import Any, AsyncGenerator, ItemsView, List, Optional, Set, Union
@@ -86,15 +87,15 @@ async def _walk(parent, key, d):  # noqa - ignore function is too complex
                     v = await async_resolve_field(v)
                 # str needs a special case vs other primitive types which
                 # are handled in the fall through case. This is mainly
-                # because str is also a collections.Iterable
+                # because str is also a Iterable
                 if isinstance(v, str):
                     continue
-                if isinstance(v, collections.Iterable) or isinstance(v, PaginatedEdge):
+                if isinstance(v, Iterable) or isinstance(v, PaginatedEdge):
                     async for g in _walk(parent, k, v):
                         yield g
     elif isinstance(d, str):
         yield (parent, key, d)
-    elif isinstance(d, collections.Iterable):
+    elif isinstance(d, Iterable):
         for v in d:
             async for g in _walk(parent, key, v):
                 yield g
@@ -133,7 +134,7 @@ def _path_walk(path, d):
                     yield g
     elif isinstance(d, str):
         yield (path, d)
-    elif isinstance(d, collections.Iterable):
+    elif isinstance(d, Iterable):
         for v in d:
             for g in _path_walk(path, v):
                 yield g
@@ -144,7 +145,7 @@ def _path_walk(path, d):
 def dict_to_item(d):
     if isinstance(d, dict):
         return ViewModel({k: dict_to_item(v) for k, v in d.items()})
-    elif isinstance(d, collections.Iterable) and not isinstance(d, str):
+    elif isinstance(d, Iterable) and not isinstance(d, str):
         return list(map(dict_to_item, d))
     else:
         return d
@@ -162,7 +163,7 @@ primitive = (str, int, bool, float, datetime)
 Primitive = Union[str, int, bool, float, datetime]
 # This should be insync with what json.dumps() accepts.
 # Also see util/json.py
-Tree = Union[ViewModel, collections.Iterable, Primitive, None]
+Tree = Union[ViewModel, Iterable, Primitive, None]
 
 
 INDENT = "  "
@@ -225,7 +226,7 @@ def print_walk(d, indent=0):  # noqa - ignore print walk is too complex
         log(INDENT * indent, end="")
         log("}")
         return d
-    elif isinstance(d, collections.Iterable):
+    elif isinstance(d, Iterable):
         d, tmp_it = itertools.tee(d)
         log("[")
         for v in itertools.islice(tmp_it, WALK_LIMIT):
@@ -338,7 +339,7 @@ async def _materialize_walk_obj(d) -> Tree:
     elif isinstance(d, PaginatedEdge):
         d.edges = await resolve_parallel_iterable(d.edges)
         return d
-    elif isinstance(d, collections.Iterable):
+    elif isinstance(d, Iterable):
         resolved = await resolve_parallel_iterable(d)
         return await asyncio.gather(
             *(val for val in (_materialize_walk_obj(v) for v in resolved) if val)
@@ -387,7 +388,7 @@ async def _materialize_walk(d) -> Tree:
     elif isinstance(d, PaginatedEdge):
         d.edges = await _materialize_walk(d.edges)
         return {"edges": list(d.edges), "page_info": d.page_info.to_json()}
-    elif isinstance(d, collections.Iterable):
+    elif isinstance(d, Iterable):
         resolved = await resolve_parallel_iterable(d)
         return await asyncio.gather(
             *(val for val in (_materialize_walk(v) for v in resolved) if val)
@@ -429,7 +430,7 @@ def _materialize_walk_sync(d) -> Tree:
     elif isinstance(d, PaginatedEdge):
         d.edges = _materialize_walk_sync(d.edges)
         return d
-    elif isinstance(d, collections.Iterable):
+    elif isinstance(d, Iterable):
         return [val for val in (_materialize_walk_sync(v) for v in d) if val]
     elif isinstance(d, types.GeneratorType):
         return _materialize_walk_sync(list(d))

@@ -21,14 +21,15 @@ class SQLTests(unittest.TestCase):
         sql = (
             UserQuery(range(1, 10))
             .project([":id", "name"])
-            .where(ast.Expr('user.age >= 16'))
-            .order_by(ast.Expr('user.age'))
+            .where(ast.Expr("user.age >= 16"))
+            .order_by(ast.Expr("user.age"))
             .take(3)
             .to_sql()
         )
         user = Tables("user")[0]
         expected = (
-            Query.from_("user").select("id", "name")
+            Query.from_("user")
+            .select("id", "name")
             .where(user.age >= 16)
             .orderby(user.age)
             .limit(3)

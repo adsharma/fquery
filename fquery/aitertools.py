@@ -18,7 +18,6 @@ from typing import (
 )
 
 
-
 T = TypeVar("T")
 AnyIterable = Union[Iterable[T], AsyncIterable[T]]
 

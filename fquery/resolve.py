@@ -2,6 +2,8 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
+import logging
+
 from collections.abc import AsyncGenerator
 
 from asyncio import iscoroutinefunction
@@ -9,6 +11,8 @@ from .async_utils import wait_for
 
 
 VISITED_EDGES_KEY = "__visited_edges__"
+
+logger = logging.getLogger("fquery")
 
 
 def resolve_field(val):
@@ -20,7 +24,7 @@ def resolve_field(val):
         else:
             return val
     except Exception as ex:
-        log_exception()
+        logger.exception("resolve_field")
         return None
 
 
@@ -38,5 +42,5 @@ async def async_resolve_field(val, edge_ctx=None):
         else:
             return val
     except Exception as ex:
-        # log_exception()
+        logger.exception("async_resolve_field")
         return None
