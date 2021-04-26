@@ -1,0 +1,50 @@
+name: CI
+
+# Controls when the action will run.
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+
+    strategy:
+      matrix:
+        os:
+          - ubuntu-20.04
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install tox
+        run: pip3 install tox
+
+      - name: Run tox
+        shell: bash
+        run: |
+          tox
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install linters
+        run: pip install black pyflakes
+
+      - name: Remove tests/cases/*.py
+        run: rm tests/cases/*.py
+
+      - name: Run black
+        run: black */ *.py
+
+      - name: Run pyflakes
+        run: pyflakes */ *.py
