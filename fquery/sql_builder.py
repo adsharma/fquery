@@ -6,7 +6,7 @@ import ast
 import operator
 
 from pypika import Query, Tables
-from visitor import Visitor
+from .visitor import Visitor
 
 # inspired from pandas.core.computation.ops
 _cmp_ops_syms = (">", "<", ">=", "<=", "==", "!=")

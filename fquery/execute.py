@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 # Copyright (c) 2016-present, Facebook, Inc. All rights reserved.
-import aitertools
 import aioitertools
 import asyncio
 import heapq
@@ -13,6 +12,7 @@ import operator
 from functools import partial
 from typing import Any, AsyncGenerator, Callable, Iterable, List
 
+from .aitertools import tee as aitertools_tee
 from .resolve import VISITED_EDGES_KEY
 from .view_model import ViewModel
 from .visitor import Visitor
@@ -195,7 +195,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
                 return
             # we need to be able to iterate over self.parent_iter multiple
             # times
-            self.parent_iter, tmp_it = await aitertools.tee(self.parent_iter)
+            self.parent_iter, tmp_it = await aitertools_tee(self.parent_iter)
             async for p in tmp_it:
                 pkey = str(self.parent_key)
                 if isinstance(p[pkey], FuncStack):
@@ -381,8 +381,8 @@ class AbstractSyntaxTreeVisitor(Visitor):
     async def visit_branched_union(self, query):
         """Similar to visit_union, but uses itertools.tee"""
         await self.visit(query.child)
-        self.root, saved_root = await aitertools.tee(self.root)
-        base_iters = await aitertools.tee(self.iter, len(query.queries))
+        self.root, saved_root = await aitertools_tee(self.root)
+        base_iters = await aitertools_tee(self.iter, len(query.queries))
         for q, it in zip(query.queries, base_iters):
             self.iter = it
             await self.visit_child(q)
@@ -447,11 +447,11 @@ class AbstractSyntaxTreeVisitor(Visitor):
 
     async def visit_edge(self, query):
         await self.visit_child(query.child)
-        self.root, tmp_root = await aitertools.tee(self.root)
+        self.root, tmp_root = await aitertools_tee(self.root)
         # Tee is necessary because iteration over parent_iter
         # could leave the _visit_edge with an empty (already consumed)
         # iterator
-        it1, it2 = await aitertools.tee(leaf_it(tmp_root))
+        it1, it2 = await aitertools_tee(leaf_it(tmp_root))
         self.parent_key = query.edge_name
         # Unbound query. Fill in input from the parent
         query._unbound._items = it1
