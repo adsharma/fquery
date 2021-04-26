@@ -40,9 +40,6 @@ jobs:
       - name: Install linters
         run: pip install black pyflakes
 
-      - name: Remove tests/cases/*.py
-        run: rm tests/cases/*.py
-
       - name: Run black
         run: black */ *.py
 
