@@ -3,12 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import ast
-import os
 import random
 import unittest
 
 from .mock_user import UserQuery
-from .async_test import async_test
 from pypika import Query, Tables
 
 

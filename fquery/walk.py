@@ -17,7 +17,7 @@ import types
 
 from collections.abc import Iterable
 from datetime import datetime
-from inspect import isasyncgen, iscoroutine, isfunction, isgenerator, isasyncgenfunction
+from inspect import isasyncgen, iscoroutine, isfunction, isgenerator
 from typing import Any, AsyncGenerator, ItemsView, List, Optional, Set, Union
 
 from .resolve import async_resolve_field, resolve_field

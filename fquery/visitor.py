@@ -34,4 +34,3 @@ class Visitor:
 
     async def finish(self):
         """Any cleanup work to be done after visit_child."""
-        pass

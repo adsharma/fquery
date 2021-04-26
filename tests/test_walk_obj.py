@@ -3,12 +3,9 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import unittest
-import asyncio
-import inspect
 
 from .async_test import async_test
-from .mock_user import MockUser, UserQuery
-from fquery.walk import _materialize_walk_obj
+from .mock_user import UserQuery
 
 
 class MaterializeWalkObjTests(unittest.TestCase):

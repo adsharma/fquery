@@ -3,8 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import unittest
-import asyncio
-import inspect
 
 from .async_test import async_test
 from fquery.walk import _materialize_walk_sync, materialize_walk

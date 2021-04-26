@@ -10,7 +10,6 @@ import heapq
 import itertools
 import operator
 
-from collections.abc import Iterable
 from functools import partial
 from typing import Any, AsyncGenerator, Callable, Iterable, List
 

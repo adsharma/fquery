@@ -23,7 +23,7 @@ def resolve_field(val):
             return wait_for(val)
         else:
             return val
-    except Exception as ex:
+    except Exception:
         logger.exception("resolve_field")
         return None
 
@@ -41,6 +41,6 @@ async def async_resolve_field(val, edge_ctx=None):
             return await val
         else:
             return val
-    except Exception as ex:
+    except Exception:
         logger.exception("async_resolve_field")
         return None
