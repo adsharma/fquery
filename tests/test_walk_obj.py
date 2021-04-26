@@ -6,9 +6,9 @@ import unittest
 import asyncio
 import inspect
 
-from tests.async_test import async_test
-from tests.mock_user import MockUser, UserQuery
-from walk import _materialize_walk_obj
+from .async_test import async_test
+from .mock_user import MockUser, UserQuery
+from fquery.walk import _materialize_walk_obj
 
 
 class MaterializeWalkObjTests(unittest.TestCase):

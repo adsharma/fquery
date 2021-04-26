@@ -3,8 +3,8 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 # Copyright (c) 2016-present, Facebook, Inc. All rights reserved.
-from fgraphql import obj, field, graphql, root
-from tests.mock_user import MockUser, MockReview, UserQuery, ReviewQuery
+from fquery.fgraphql import obj, field, graphql, root
+from .mock_user import MockUser, MockReview, UserQuery, ReviewQuery
 from typing import List, Optional
 
 

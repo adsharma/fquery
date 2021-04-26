@@ -5,7 +5,8 @@
 # Copyright (c) 2016-present, Facebook, Inc. All rights reserved.
 from collections import OrderedDict
 from dataclasses import dataclass
-from resolve import VISITED_EDGES_KEY
+
+from .resolve import VISITED_EDGES_KEY
 
 
 @dataclass

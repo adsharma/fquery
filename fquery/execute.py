@@ -13,10 +13,10 @@ import operator
 from functools import partial
 from typing import Any, AsyncGenerator, Callable, Iterable, List
 
-from resolve import VISITED_EDGES_KEY
-from view_model import ViewModel
-from visitor import Visitor
-from walk import leaf_it, materialize_walk
+from .resolve import VISITED_EDGES_KEY
+from .view_model import ViewModel
+from .visitor import Visitor
+from .walk import leaf_it, materialize_walk
 
 
 def project_item(keys: List[str]) -> Callable[[ViewModel], Iterable]:

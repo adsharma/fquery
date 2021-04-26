@@ -19,9 +19,9 @@ from datetime import datetime
 from inspect import isasyncgen, iscoroutine, isfunction, isgenerator, isasyncgenfunction
 from typing import Any, AsyncGenerator, ItemsView, List, Optional, Set, Union
 
-from resolve import async_resolve_field, resolve_field
-from view_model import ViewModel
-from visitor import Visitor
+from .resolve import async_resolve_field, resolve_field
+from .view_model import ViewModel
+from .visitor import Visitor
 
 
 class EdgeContext:

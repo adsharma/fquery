@@ -6,13 +6,14 @@ import ast
 import itertools
 import traceback
 
-from async_utils import wait_for
+from enum import IntEnum
 from typing import get_type_hints, Dict, ForwardRef, List, Optional, Tuple, Type, Union
 from types import FunctionType
 
-from execute import AbstractSyntaxTreeVisitor
-from sql_builder import SQLBuilderVisitor
-from walk import (
+from .async_utils import wait_for
+from .execute import AbstractSyntaxTreeVisitor
+from .sql_builder import SQLBuilderVisitor
+from .walk import (
     EdgeContext,
     ViewModel,
     PrintASTVisitor,
@@ -21,7 +22,6 @@ from walk import (
     materialize_walk_obj,
     print_walk,
 )
-from enum import IntEnum
 
 
 class QueryableOp(IntEnum):

@@ -5,7 +5,7 @@
 from collections.abc import AsyncGenerator
 
 from asyncio import iscoroutinefunction
-from async_utils import wait_for
+from .async_utils import wait_for
 
 
 VISITED_EDGES_KEY = "__visited_edges__"

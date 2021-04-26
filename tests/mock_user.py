@@ -7,9 +7,10 @@ from __future__ import annotations
 import random
 
 from dataclasses import dataclass
-from query import query, Query, QueryableOp
 from typing import List, Optional
-from view_model import edge, node, ViewModel
+
+from fquery.query import query, Query, QueryableOp
+from fquery.view_model import edge, node, ViewModel
 
 
 @dataclass
