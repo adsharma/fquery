@@ -5,8 +5,10 @@ relational mappers). These abstractions expose much of the underlying
 relational behavior (both in schema and queries).This project on the
 other hand allows a programmer to stay entirely in the object domain
 (hiding any relational functionality contained within), while still
-allowing transparent mapping to a relational database. This transparent
-mapping functionality is not included in this release.
+allowing transparent mapping to a relational database.
+
+Only basic transparent mapping of fqueries to SQL is supported:
+[Demo](https://github.com/adsharma/fquery/blob/main/tests/test_sql.py).
 
 # Installation
 
@@ -24,6 +26,12 @@ t
 ```
 
 You can also run it via tox.
+
+# Tutorial
+
+[Blog post](https://adsharma.github.io/django-fquery/) on how to use
+fquery with Django and get easy access to graphql functionality
+
 
 # License
 
