@@ -10,8 +10,11 @@ from django.db.models.fields import (
     UUIDField,
     FloatField,
 )
+from django.db.models.fields.related import ForeignKey
 from uuid import UUID
 from datetime import datetime, date
+
+from .view_model import get_edges, get_return_type
 
 
 def model(cls):
@@ -34,4 +37,9 @@ def model(cls):
     fields = dataclasses.fields(cls)
     django_fields = {djf.name: map_type(djf.type) for djf in fields if djf.name != "id"}
     django_fields["__module__"] = cls.__module__
+    django_foreign_key_funcs = get_edges(cls)
+    for name, f in django_foreign_key_funcs.items():
+        ret_type = get_return_type(f)
+        name = "_" + name  # so it doesn't conflict with the async method name
+        django_fields[name] = ForeignKey(ret_type, on_delete=models.CASCADE)
     return make_django_model(cls.__name__, (models.Model,), **django_fields)

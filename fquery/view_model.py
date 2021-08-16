@@ -3,8 +3,11 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 # Copyright (c) 2016-present, Facebook, Inc. All rights reserved.
+import inspect
+
 from collections import OrderedDict
 from dataclasses import dataclass
+from typing import get_type_hints, ForwardRef
 
 from .resolve import VISITED_EDGES_KEY
 
@@ -82,3 +85,22 @@ def edge(fn):
     decorated._edge = True
     decorated._old = fn
     return decorated
+
+
+def get_edges(cls):
+    return {
+        name: f
+        for name, f in inspect.getmembers(cls, predicate=inspect.isfunction)
+        if hasattr(f, "_edge")
+    }
+
+
+def get_return_type(func):
+    ret = get_type_hints(func)["return"]
+    if hasattr(ret, "_name") and ret._name == "List":
+        ret = ret.__args__[0]
+    if isinstance(ret, ForwardRef):
+        return ret.__forward_arg__
+    if isinstance(ret, type):
+        return ret.__name__
+    return ret

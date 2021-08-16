@@ -7,15 +7,15 @@ import itertools
 import traceback
 
 from enum import IntEnum
-from typing import get_type_hints, Dict, ForwardRef, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 from types import FunctionType
 
 from .async_utils import wait_for
 from .execute import AbstractSyntaxTreeVisitor
 from .sql_builder import SQLBuilderVisitor
+from .view_model import ViewModel, get_edges, get_return_type
 from .walk import (
     EdgeContext,
-    ViewModel,
     PrintASTVisitor,
     Tree,
     materialize_walk,
@@ -277,25 +277,11 @@ class Query:
 
 
 def query(cls):
-    def get_return_type(func):
-        ret = get_type_hints(func)["return"]
-        if hasattr(ret, "_name") and ret._name == "List":
-            ret = ret.__args__[0]
-        if isinstance(ret, ForwardRef):
-            return ret.__forward_arg__
-        if isinstance(ret, type):
-            return ret.__name__
-        return ret
-
     cls = type(cls.__name__, (Query,), dict(cls.__dict__))
     node_cls = cls.TYPE
-    edges = [
-        (name, func)
-        for name, func in node_cls.__dict__.items()
-        if hasattr(func, "_edge")
-    ]
+    edges = get_edges(node_cls)
     cls.EDGE_NAME_TO_RETURN_TYPE = {
-        name: get_return_type(func._old) for name, func in edges
+        name: get_return_type(func._old) for name, func in edges.items()
     }
     Query.ALL_QUERIES.append(cls)
     return cls
