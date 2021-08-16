@@ -277,6 +277,13 @@ class Query:
 
 
 def query(cls):
+    def constructor(self, ids=None, items=None):
+        Query.__init__(self, None, ids, items)
+
+    @staticmethod
+    def resolve_obj(_id: int, edge: str = "") -> Optional[ViewModel]:
+        return cls.TYPE.get(_id)
+
     cls = type(cls.__name__, (Query,), dict(cls.__dict__))
     node_cls = cls.TYPE
     edges = get_edges(node_cls)
@@ -284,6 +291,9 @@ def query(cls):
         name: get_return_type(func._old) for name, func in edges.items()
     }
     Query.ALL_QUERIES.append(cls)
+    cls.OP = QueryableOp.LEAF
+    cls.__init__ = constructor
+    cls.resolve_obj = resolve_obj
     return cls
 
 

@@ -7,10 +7,10 @@ from __future__ import annotations
 import random
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
-from fquery.query import query, Query, QueryableOp
-from fquery.view_model import edge, node, ViewModel
+from fquery.query import query
+from fquery.view_model import edge, node
 
 
 @dataclass
@@ -44,15 +44,7 @@ class MockUser:
 
 @query
 class UserQuery:
-    OP = QueryableOp.LEAF
     TYPE = MockUser
-
-    def __init__(self, ids=None, items=None):
-        Query.__init__(self, None, ids, items)
-
-    @staticmethod
-    def resolve_obj(_id: int, edge: str = "") -> Optional[ViewModel]:
-        return MockUser.get(_id)
 
 
 @dataclass
@@ -80,12 +72,4 @@ class MockReview:
 
 @query
 class ReviewQuery:
-    OP = QueryableOp.LEAF
     TYPE = MockReview
-
-    def __init__(self, ids=None, items=None):
-        Query.__init__(self, None, ids, items)
-
-    @staticmethod
-    def resolve_obj(_id: int, edge: str = "") -> Optional[ViewModel]:
-        return MockReview.get(_id)
