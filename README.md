@@ -29,6 +29,9 @@ You can also run it via tox.
 
 # Tutorial
 
+[Intro](https://adsharma.github.io/fquery/): What is fquery, sample queries
+and some information on internals.
+
 [Blog post](https://adsharma.github.io/django-fquery/) on how to use
 fquery with Django and get easy access to graphql functionality
 
