@@ -39,7 +39,7 @@ def model(cls):
     django_fields["__module__"] = cls.__module__
     django_foreign_key_funcs = get_edges(cls)
     for name, f in django_foreign_key_funcs.items():
-        ret_type = get_return_type(f)
+        ret_type = get_return_type(f._old)
         name = "_" + name  # so it doesn't conflict with the async method name
         django_fields[name] = ForeignKey(ret_type, on_delete=models.CASCADE)
     return make_django_model(cls.__name__, (models.Model,), **django_fields)
