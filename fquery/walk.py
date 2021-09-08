@@ -6,8 +6,8 @@
 
 """This module contains various walkers to traverse the lazy map.
 
-   Utilities to walk only the leaves, modify them, insert an interator
-   above, materialzie all the lazy operators, print values and print types.
+   Utilities to walk only the leaves, modify them, insert an iterator
+   above, materialze all the lazy operators, print values and print types.
 """
 import asyncio
 import itertools
