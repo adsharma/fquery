@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - ubuntu-latest
+          - ubuntu:24.04
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -32,13 +32,13 @@ jobs:
           tox
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu:24.04
 
     steps:
       - uses: actions/checkout@v2
 
       - name: Install linters
-        run: pip install black pyflakes
+        run: pip3 install black pyflakes
 
       - name: Run black
         run: black */ *.py
