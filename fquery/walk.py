@@ -344,7 +344,7 @@ async def _materialize_walk_obj(d) -> Tree:
         return await asyncio.gather(
             *(val for val in (_materialize_walk_obj(v) for v in resolved) if val)
         )
-    elif type(d) == types.AsyncGeneratorType:
+    elif type(d) is types.AsyncGeneratorType:
         d_list = [i async for i in d]  # TODO: Optimize
         resolved = await resolve_parallel_iterable(d_list)
         return await asyncio.gather(
@@ -393,7 +393,7 @@ async def _materialize_walk(d) -> Tree:
         return await asyncio.gather(
             *(val for val in (_materialize_walk(v) for v in resolved) if val)
         )
-    elif type(d) == types.AsyncGeneratorType:
+    elif type(d) is types.AsyncGeneratorType:
         d_list = [i async for i in d]  # TODO: Optimize
         resolved = await resolve_parallel_iterable(d_list)
         return await asyncio.gather(

@@ -87,7 +87,7 @@ class Query:
         self._to_json = False
 
     def __str__(self) -> str:
-        query_name = str(self.OP)[len("QueryableOp.") :]
+        query_name = str(self.OP)[len("QueryableOp."):]
         if self.OP == QueryableOp.LEAF:
             return f"{query_name} ({self.__class__.__name__})"
         else:

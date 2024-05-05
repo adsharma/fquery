@@ -62,7 +62,7 @@ class SQLBuilderVisitor(Visitor):
         left, op, right = query._expr.value.split()
         right = ast.literal_eval(right)
         table, field = left.split(".") if "." in left else (self.sql, left)
-        if type(table) == str:
+        if type(table) is str:
             table = Tables(table)[0]
         binary_op = _cmp_ops_dict[op]
         self.sql_stack.append(
@@ -73,7 +73,7 @@ class SQLBuilderVisitor(Visitor):
     async def visit_order_by(self, query):
         key = query._expr.value
         table, field = key.split(".") if "." in key else (self.sql, key)
-        if type(table) == str:
+        if type(table) is str:
             table = Tables(table)[0]
         self.sql_stack.append(lambda x: x.orderby(table.__getattr__(field)))
         await self.visit(query.child)
