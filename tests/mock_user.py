@@ -42,11 +42,6 @@ class MockUser:
         return u
 
 
-@query
-class UserQuery:
-    TYPE = MockUser
-
-
 @dataclass
 @node
 class MockReview:
@@ -68,6 +63,11 @@ class MockReview:
         )
         r._type = 2
         return r
+
+
+@query
+class UserQuery:
+    TYPE = MockUser
 
 
 @query

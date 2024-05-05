@@ -20,7 +20,7 @@ class Visitor:
             return
         if isinstance(node, Callable):
             return self.visit_callable(node)
-        name = str(node.OP).lower().split(".")[-1]
+        name = node.OP.name.lower()
         meth = getattr(self, "visit_" + name, None)
         await meth(node)
 
