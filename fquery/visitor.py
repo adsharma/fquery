@@ -12,9 +12,9 @@ class Visitor:
     async def visit(self, node):
         """Visit a node.
 
-           Input is assumed to be validated json against a schema.
-           Dispatch to a visit_foo if the first element in the json
-           is foo.
+        Input is assumed to be validated json against a schema.
+        Dispatch to a visit_foo if the first element in the json
+        is foo.
         """
         if not node:
             return
@@ -26,9 +26,9 @@ class Visitor:
 
     async def visit_child(self, child):
         """To be called whenever a node with multiple children
-           needs to visit children. Compared to visit(), this can
-           do cleanup work that needs to be scheduled after each
-           child."""
+        needs to visit children. Compared to visit(), this can
+        do cleanup work that needs to be scheduled after each
+        child."""
         await self.visit(child)
         await self.finish()
 

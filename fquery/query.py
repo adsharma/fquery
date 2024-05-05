@@ -256,7 +256,6 @@ class Query:
         wait_for(visitor.visit(self))
         return visitor.malloy
 
-
     def batch_resolve_objs(self) -> List[Dict[str, List[ViewModel]]]:
         return [{str(None): [o for o in (self.resolve_obj(i) for i in self.ids) if o]}]
 

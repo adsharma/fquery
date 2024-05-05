@@ -15,7 +15,7 @@ from .resolve import VISITED_EDGES_KEY
 @dataclass
 class ViewModel(OrderedDict):
     """Like an OrderedDict, but treats :id as special for
-       equality purposes and hashable (so you can create sets).
+    equality purposes and hashable (so you can create sets).
     """
 
     id: int

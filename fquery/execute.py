@@ -162,8 +162,8 @@ class AbstractSyntaxTreeVisitor(Visitor):
 
     async def finish(self):
         """Setup funcs in reverse order. On entry,
-           p[pkey] may be [orig, a, b, c]
-           On exit, it changes to a coroutine returning c(b(a(orig)))."""
+        p[pkey] may be [orig, a, b, c]
+        On exit, it changes to a coroutine returning c(b(a(orig)))."""
         if not self.parent_iter:
             return
         pkey = str(self.parent_key)
@@ -177,15 +177,15 @@ class AbstractSyntaxTreeVisitor(Visitor):
 
     def nested(func):
         """Apply self.map_func to all the values in the map.
-           map_func takes a list of ViewModels as the argument
+        map_func takes a list of ViewModels as the argument
         """
 
         async def _insert_parent_func(self, func):
-            """ Given a recursive dict in self.iter backed by generator
-                expressions, insert `func' right above the leaves.
+            """Given a recursive dict in self.iter backed by generator
+            expressions, insert `func' right above the leaves.
 
-                self.parent_iter and self.parent_key are used to
-                quickly locate the parents of leaf nodes.
+            self.parent_iter and self.parent_key are used to
+            quickly locate the parents of leaf nodes.
             """
             if not self.parent_iter or not self.parent_key:
                 self.iter = aioitertools.map(

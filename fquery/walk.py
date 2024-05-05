@@ -110,8 +110,8 @@ async def _walk(parent, key, d):  # noqa - ignore function is too complex
 def walk(d):
     """Walk the dictionary, yielding tuples of (root, parent, key, leaf).
 
-       This is particularly useful if you want to iterate over
-       leaves, while also expanding the tree by adding more children
+    This is particularly useful if you want to iterate over
+    leaves, while also expanding the tree by adding more children
     """
     for parent, key, leaf in _walk({}, None, d):
         yield (d, parent, key, leaf)
@@ -119,7 +119,7 @@ def walk(d):
 
 async def leaf_it(d):
     """Similar to walk above, but doesn't provide reference to
-       parent"""
+    parent"""
     async for _parent, _key, leaf in _walk({}, None, d):
         yield leaf
 
@@ -172,7 +172,7 @@ WALK_LIMIT = 5  # max number of items in dict or values in iterator to print
 
 def print_walk(d, indent=0):  # noqa - ignore print walk is too complex
     """Dumps a lazy dictionary without expanding
-       any lazy data structures such as iterators, generators
+    any lazy data structures such as iterators, generators
     """
     # workaround to suppress 'print used in library context' lint
     # instead of suppressing on every line
@@ -243,16 +243,16 @@ def print_walk(d, indent=0):  # noqa - ignore print walk is too complex
 
 async def materialize_walk(d) -> Tree:
     """Returns a materialized dictionary expanding
-       any lazy data structures such as iterators, generators
-       encountered.
+    any lazy data structures such as iterators, generators
+    encountered.
     """
     return await _materialize_walk(d)
 
 
 async def materialize_walk_obj(d) -> Tree:
     """Returns an object graph expanding
-       any lazy data structures such as iterators, generators
-       encountered.
+    any lazy data structures such as iterators, generators
+    encountered.
     """
     return await _materialize_walk_obj(d)
 
