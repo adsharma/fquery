@@ -10,6 +10,9 @@ allowing transparent mapping to a relational database.
 Only basic transparent mapping of fqueries to SQL is supported:
 [Demo](https://github.com/adsharma/fquery/blob/main/tests/test_sql.py).
 
+Only basic transparent mapping of fqueries to [malloy](https://www.malloydata.dev/) is supported:
+[Demo](https://github.com/adsharma/fquery/blob/main/tests/test_malloy.py).
+
 # Installation
 
 Requires python3.x
