@@ -13,6 +13,7 @@ from types import FunctionType
 from .async_utils import wait_for
 from .execute import AbstractSyntaxTreeVisitor
 from .sql_builder import SQLBuilderVisitor
+from .malloy_builder import MalloyBuilderVisitor
 from .view_model import ViewModel, get_edges, get_return_type
 from .walk import (
     EdgeContext,
@@ -249,6 +250,12 @@ class Query:
         visitor = SQLBuilderVisitor([])
         wait_for(visitor.visit(self))
         return visitor.sql
+
+    def to_malloy(self) -> str:
+        visitor = MalloyBuilderVisitor([])
+        wait_for(visitor.visit(self))
+        return visitor.malloy
+
 
     def batch_resolve_objs(self) -> List[Dict[str, List[ViewModel]]]:
         return [{str(None): [o for o in (self.resolve_obj(i) for i in self.ids) if o]}]
