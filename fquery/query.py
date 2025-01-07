@@ -5,15 +5,14 @@
 import ast
 import itertools
 import traceback
-
 from enum import IntEnum
-from typing import Dict, List, Optional, Tuple, Type, Union
 from types import FunctionType
+from typing import Dict, List, Optional, Tuple, Type, Union
 
 from .async_utils import wait_for
 from .execute import AbstractSyntaxTreeVisitor
-from .sql_builder import SQLBuilderVisitor
 from .malloy_builder import MalloyBuilderVisitor
+from .sql_builder import SQLBuilderVisitor
 from .view_model import ViewModel, get_edges, get_return_type
 from .walk import (
     EdgeContext,

@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import asyncio
-
 from typing import (
     Any,
     AsyncGenerator,
@@ -16,7 +15,6 @@ from typing import (
     TypeVar,
     Union,
 )
-
 
 T = TypeVar("T")
 AnyIterable = Union[Iterable[T], AsyncIterable[T]]

@@ -4,8 +4,9 @@
 # LICENSE file in the root directory of this source tree.
 import unittest
 
-from .async_test import async_test
 from fquery.walk import _materialize_walk_sync, materialize_walk
+
+from .async_test import async_test
 
 
 class MaterializeWalkTests(unittest.TestCase):

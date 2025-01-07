@@ -4,10 +4,9 @@
 # LICENSE file in the root directory of this source tree.
 # Copyright (c) 2016-present, Facebook, Inc. All rights reserved.
 import inspect
-
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import get_type_hints, ForwardRef
+from typing import ForwardRef, get_type_hints
 
 from .resolve import VISITED_EDGES_KEY
 

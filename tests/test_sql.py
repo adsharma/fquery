@@ -6,8 +6,9 @@ import ast
 import random
 import unittest
 
-from .mock_user import UserQuery
 from pypika import Query, Tables
+
+from .mock_user import UserQuery
 
 
 class SQLTests(unittest.TestCase):

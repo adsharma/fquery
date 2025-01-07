@@ -1,18 +1,18 @@
 import dataclasses
+from datetime import date, datetime
+from uuid import UUID
 
 from django.db import models
 from django.db.models.fields import (
     BooleanField,
-    IntegerField,
-    TextField,
     DateField,
     DateTimeField,
-    UUIDField,
     FloatField,
+    IntegerField,
+    TextField,
+    UUIDField,
 )
 from django.db.models.fields.related import ForeignKey
-from uuid import UUID
-from datetime import datetime, date
 
 from .view_model import get_edges, get_return_type
 

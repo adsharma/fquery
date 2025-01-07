@@ -3,12 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import logging
-
+from asyncio import iscoroutinefunction
 from collections.abc import AsyncGenerator
 
-from asyncio import iscoroutinefunction
 from .async_utils import wait_for
-
 
 VISITED_EDGES_KEY = "__visited_edges__"
 

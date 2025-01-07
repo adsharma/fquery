@@ -3,14 +3,14 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 # Copyright (c) 2016-present, Facebook, Inc. All rights reserved.
-import aioitertools
 import asyncio
 import heapq
 import itertools
 import operator
-
 from functools import partial
 from typing import Any, AsyncGenerator, Callable, Iterable, List
+
+import aioitertools
 
 from .aitertools import tee as aitertools_tee
 from .resolve import VISITED_EDGES_KEY

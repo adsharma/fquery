@@ -1,5 +1,6 @@
-from fquery.django import model
 from dataclasses import dataclass
+
+from fquery.django import model
 from fquery.view_model import node
 
 

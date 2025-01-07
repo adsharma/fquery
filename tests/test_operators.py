@@ -7,9 +7,8 @@ import os
 import random
 import unittest
 
-from .mock_user import UserQuery
 from .async_test import async_test
-
+from .mock_user import UserQuery
 
 TEST_DATA = os.path.join(os.path.dirname(__file__), "test_data")
 

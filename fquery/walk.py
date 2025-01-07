@@ -10,11 +10,10 @@
    above, materialze all the lazy operators, print values and print types.
 """
 import asyncio
-import itertools
 import inspect
+import itertools
 import re
 import types
-
 from collections.abc import Iterable
 from datetime import datetime
 from inspect import isasyncgen, iscoroutine, isfunction, isgenerator
@@ -179,9 +178,9 @@ def print_walk(d, indent=0):  # noqa - ignore print walk is too complex
     log = print
 
     log(INDENT * indent, end="")
-    from query import (
+    from query import (  # noqa - inner import as query depends on walk to walk query
         Query,
-    )  # noqa - inner import as query depends on walk to walk query
+    )
 
     if isinstance(d, primitive) or d is None or isinstance(d, Query):
         log(d)
