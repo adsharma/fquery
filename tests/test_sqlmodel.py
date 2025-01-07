@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel
 
 from fquery.sqlmodel import model
 
@@ -43,9 +44,6 @@ def test_sqlmodel():
     user_sql = user.sqlmodel()
     assert user_sql.__tablename__ == "users"
     engine = create_engine("sqlite:///:memory:", echo=True)
-    # Having this at the top of the file will cause a circular import
-    from sqlmodel import SQLModel
-
     SQLModel.metadata.create_all(engine)
 
     Session = sessionmaker(bind=engine)
