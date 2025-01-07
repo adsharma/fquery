@@ -25,5 +25,8 @@ setuptools.setup(
     python_requires=">=3.6",
     test_suite="tests",
     install_requires=["aioitertools"],
-    extras_require={"SQL": ["pypika >= 0.36.5"], "graphql": ["strawberry >= 0.37.1"]},
+    extras_require={
+        "SQL": ["pypika >= 0.36.5", "sqlmodel > 0.0.22"],
+        "graphql": ["strawberry >= 0.37.1"],
+    },
 )
