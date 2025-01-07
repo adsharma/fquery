@@ -20,7 +20,6 @@ jobs:
           - ubuntu-latest
         py:
           - "3.12"
-          - "3.10"
     runs-on: ${{ matrix.os }}
 
     steps:
