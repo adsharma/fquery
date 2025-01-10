@@ -28,6 +28,7 @@ SA_TYPEMAP = {
 }
 
 GLOBAL_ID_SEQ = Sequence("global_id_seq")  # define sequence explicitly
+SQL_PK = {"metadata": {"SQL": {"primary_key": True}}}
 
 
 def model(table_name: str = None, global_id: bool = False):
@@ -78,7 +79,12 @@ def model(table_name: str = None, global_id: bool = False):
                         sa_column=Column(
                             SA_TYPEMAP.get(field.type, String),
                             GLOBAL_ID_SEQ if global_id else None,
-                            primary_key=field.name == "id",
+                            primary_key=(
+                                field.name == "id"
+                                or field.metadata.get("SQL", {}).get(
+                                    "primary_key", False
+                                )
+                            ),
                         ),
                     )
                     for field in fields(cls)
