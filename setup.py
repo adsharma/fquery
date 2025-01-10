@@ -11,7 +11,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="fquery",
-    version="0.1",
+    version="0.2",
     description="A graph query engine",
     url="https://github.com/adsharma/fquery",
     long_description=long_description,
