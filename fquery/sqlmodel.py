@@ -50,11 +50,6 @@ def model(table_name: str = None, global_id: bool = False):
         if not is_dataclass(cls):
             raise ValueError("The class must be a dataclass")
 
-        class Config:
-            exclude = {"__sqlmodel__", "sqlmodel"}
-
-        Config.ignored_types = (Config,)
-
         # Generate the SQLModel class
         sqlmodel_cls = type(
             cls.__name__ + "SQLModel",
@@ -71,7 +66,7 @@ def model(table_name: str = None, global_id: bool = False):
                 },
                 # pydantic wants this
                 "__module__": cls.__module__,
-                "Config": Config,
+                "Config": {"exclude": {"__sqlmodel__", "sqlmodel"}},
                 **{
                     field.name: Field(
                         default_factory=getattr(cls, field.name, None),
