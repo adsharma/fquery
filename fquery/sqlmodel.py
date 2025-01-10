@@ -9,6 +9,7 @@ from sqlalchemy import (
     Float,
     Integer,
     LargeBinary,
+    Sequence,
     String,
     Time,
 )
@@ -16,6 +17,7 @@ from sqlmodel import Column, Field, SQLModel
 
 SA_TYPEMAP = {
     int: Integer,
+    int | None: Integer,
     float: Float,
     str: String,
     bool: Boolean,
@@ -25,8 +27,10 @@ SA_TYPEMAP = {
     bytes: LargeBinary,  # or Binary for smaller data
 }
 
+GLOBAL_ID_SEQ = Sequence("global_id_seq")  # define sequence explicitly
 
-def model(table_name: str = None):
+
+def model(table_name: str = None, global_id: bool = False):
     """
     A decorator that generates a SQLModel from a dataclass.
 
@@ -73,6 +77,7 @@ def model(table_name: str = None):
                         # TODO: revisit the idea of using string for unknown types
                         sa_column=Column(
                             SA_TYPEMAP.get(field.type, String),
+                            GLOBAL_ID_SEQ if global_id else None,
                             primary_key=field.name == "id",
                         ),
                     )
