@@ -44,7 +44,8 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
     """
 
     def sqlmodel(self) -> SQLModel:
-        return self.__sqlmodel__(**self.__dict__)
+        attrs = {name: getattr(self, name) for name in self.__sqlmodel__.__fields__}
+        return self.__sqlmodel__(**attrs)
 
     def decorator(cls):
         # Check if the class is a dataclass
