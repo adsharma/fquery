@@ -27,7 +27,12 @@ setuptools.setup(
     install_requires=["aioitertools"],
     test_requires=["sqlalchemy >= 2.0.36"],
     extras_require={
-        "SQL": ["pypika >= 0.36.5", "sqlmodel >= 0.0.22", "duckdb_engine >= 0.14.0"],
+        "SQL": [
+            "pypika >= 0.36.5",
+            "sqlmodel >= 0.0.22",
+            "duckdb_engine >= 0.14.0",
+            "inflection >= 0.5.1",
+        ],
         "graphql": ["strawberry >= 0.37.1"],
     },
 )

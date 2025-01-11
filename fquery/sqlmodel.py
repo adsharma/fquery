@@ -2,6 +2,7 @@ from dataclasses import fields, is_dataclass
 from datetime import date, datetime, time
 from typing import ClassVar
 
+import inflection
 from sqlalchemy import (
     Boolean,
     Date,
@@ -31,7 +32,7 @@ GLOBAL_ID_SEQ = Sequence("global_id_seq")  # define sequence explicitly
 SQL_PK = {"metadata": {"SQL": {"primary_key": True}}}
 
 
-def model(table_name: str = None, global_id: bool = False):
+def model(table: bool = True, table_name: str = None, global_id: bool = False):
     """
     A decorator that generates a SQLModel from a dataclass.
 
@@ -50,13 +51,18 @@ def model(table_name: str = None, global_id: bool = False):
         if not is_dataclass(cls):
             raise ValueError("The class must be a dataclass")
 
+        nonlocal table_name
+        table_name = table_name or inflection.underscore(
+            inflection.pluralize(cls.__name__)
+        )
+
         # Generate the SQLModel class
         sqlmodel_cls = type(
             cls.__name__ + "SQLModel",
             (SQLModel,),
             {
                 # Table name is a plural and hence the 's' at the end
-                "__tablename__": table_name or cls.__name__.lower() + "s",
+                "__tablename__": table_name,
                 # Add type annotations to the generated fields
                 "__annotations__": {
                     **{field.name: field.type for field in fields(cls)},
@@ -86,7 +92,7 @@ def model(table_name: str = None, global_id: bool = False):
                 },
             },
             # For SQLModel's SQLModelMetaClass
-            table=True,
+            table=table,
         )
 
         cls.__sqlmodel__ = sqlmodel_cls
