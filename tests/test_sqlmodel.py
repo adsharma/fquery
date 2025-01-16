@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -9,13 +10,25 @@ from fquery.sqlmodel import SQL_PK, model
 
 
 @model(global_id=True)
-@dataclass
+@dataclass(kw_only=True)
 class User:
+    id: int | None = None
     name: str
     email: str
-    id: int | None = None
     created_at: datetime = None
     updated_at: datetime = None
+    friend: Optional["User"] = field(
+        default=None, metadata={"SQL": {"foreign_key": "users.id"}}
+    )
+    # reviews: List["Review"] = field(default=None, metadata={"SQL": {"relationship": True}})
+
+
+@model(global_id=True)
+@dataclass(kw_only=True)
+class Review:
+    id: int | None = None
+    score: int
+    # user: Optional[User] = field(default=None, metadata={"SQL": {"relationship": True, "many_to_one": True}})
 
 
 @model(global_id=True)
@@ -41,8 +54,8 @@ user1 = User(
     email="jane@example.com",
     created_at=datetime.now(),
     updated_at=datetime.now(),
+    friend=user.id,
 )
-
 
 # The following is equivalent to: user.sql_model()
 # from sqlmodel import Field
