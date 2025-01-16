@@ -1,6 +1,6 @@
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime, time
-from typing import ClassVar, ForwardRef, List, Optional, Union, get_type_hints
+from typing import ClassVar, List, Optional, Union, get_args, get_origin, get_type_hints
 
 import inflection
 from sqlalchemy import (
@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     Time,
 )
+from sqlalchemy.orm.base import Mapped
 from sqlmodel import Column, Field, Relationship, SQLModel
 
 SA_TYPEMAP = {
@@ -91,11 +92,23 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
             if has_many_to_one_relationship:
                 type_class = get_type_hints(cls)[field.name]
                 return Optional[other_class.__sqlmodel__]
-            if isinstance(other_class, ForwardRef):
-                other_class = other_class.__forward_arg__
-            if isinstance(other_class, str):
-                return List[Optional[other_class + "SQLModel"]]
         return field.type
+
+    def patch_back_populates_types(field, back_populates, cls, sqlmodel_cls):
+        sql_meta = field.metadata.get("SQL", {})
+        has_relationship = bool(sql_meta.get("relationship", None))
+        has_many_to_one_relationship = bool(sql_meta.get("many_to_one", None))
+        if has_relationship and has_many_to_one_relationship:
+            type_class = field.type
+            other_class = type_class.__args__[0].__sqlmodel__
+            old = other_class.__annotations__[back_populates]
+            # Should be sqlalchemy.orm.base.Mapped[typing.List[ForwardRef('T')]]
+            # replace it with Mapped[List[sqlmodel_cls]]
+            origin = get_origin(old)
+            inner = get_args(old)
+            if origin == Mapped and len(inner) and get_origin(inner[0]) is list:
+                other_class.__annotations__[back_populates] = Mapped[List[sqlmodel_cls]]
+                # TODO: rebuild the relationships, so Declarative mapping works
 
     def decorator(cls):
         # Check if the class is a dataclass
@@ -131,6 +144,14 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
         )
 
         cls.__sqlmodel__ = sqlmodel_cls
+        # Update type annotations in any class with a relationship with this class to point
+        # to the SQLModel, not the dataclass
+        for field in fields(cls):
+            if not field.name in sqlmodel_cls.__sqlmodel_relationships__:
+                continue
+            rel = sqlmodel_cls.__sqlmodel_relationships__.get(field.name, None)
+            if rel and hasattr(rel, "back_populates"):
+                patch_back_populates_types(field, rel.back_populates, cls, sqlmodel_cls)
         cls.sqlmodel = sqlmodel
         return cls
 
