@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import field
 from datetime import datetime
 from typing import List, Optional
 
@@ -6,43 +6,36 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
-from fquery.sqlmodel import SQL_PK, model
+from fquery.sqlmodel import (
+    SQL_PK,
+    foreignkey,
+    many_to_one,
+    one_to_many,
+    sqlmodel,
+    unique,
+)
 
 
-@model(global_id=True)
-@dataclass(kw_only=True)
+@sqlmodel
 class User:
     id: int | None = None
     name: str
-    email: str
+    email: str = unique()
     created_at: datetime = None
     updated_at: datetime = None
-    friend_id: Optional[int] = field(
-        default=None, metadata={"SQL": {"foreign_key": "users.id"}}
-    )
-    friend: Optional["User"] = field(
-        default=None, metadata={"SQL": {"relationship": True, "back_populates": False}}
-    )
-    reviews: List["Review"] = field(
-        default=None, metadata={"SQL": {"relationship": True}}
-    )
+
+    friend: Optional["User"] = foreignkey("users.id")
+    reviews: List["Review"] = one_to_many()
 
 
-@model(global_id=True)
-@dataclass(kw_only=True)
+@sqlmodel
 class Review:
     id: int | None = None
     score: int
-    user_id: Optional[int] = field(
-        default=None, metadata={"SQL": {"foreign_key": "users.id"}}
-    )
-    user: Optional[User] = field(
-        default=None, metadata={"SQL": {"relationship": True, "many_to_one": True}}
-    )
+    user: Optional[User] = many_to_one("users.id")
 
 
-@model(global_id=True)
-@dataclass
+@sqlmodel
 class Relation:
     src: int | None = field(**SQL_PK)
     type: int = field(**SQL_PK)
@@ -93,7 +86,13 @@ def test_sqlmodel():
         session.add(user1.sqlmodel())
         session.commit()
 
-        relation = Relation(user.id, 1, user1.id, datetime.now(), datetime.now())
+        relation = Relation(
+            src=user.id,
+            type=1,
+            dst=user1.id,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
         session.add(relation.sqlmodel())
         session.commit()
         # Read all users from the database
