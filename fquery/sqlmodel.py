@@ -1,6 +1,15 @@
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime, time
-from typing import ClassVar, List, Optional, Union, get_args, get_origin, get_type_hints
+from typing import (
+    ClassVar,
+    ForwardRef,
+    List,
+    Optional,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 import inflection
 from sqlalchemy import (
@@ -68,6 +77,8 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
             )
         if has_relationship:
             back_populates = sql_meta.get("back_populates", None)
+            if back_populates is False:
+                return Relationship()
             if not back_populates:
                 back_populates = inflection.underscore(cls.__name__)
                 if sql_meta.get("many_to_one", False):
@@ -98,17 +109,31 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
         sql_meta = field.metadata.get("SQL", {})
         has_relationship = bool(sql_meta.get("relationship", None))
         has_many_to_one_relationship = bool(sql_meta.get("many_to_one", None))
-        if has_relationship and has_many_to_one_relationship:
-            type_class = field.type
-            other_class = type_class.__args__[0].__sqlmodel__
-            old = other_class.__annotations__[back_populates]
-            # Should be sqlalchemy.orm.base.Mapped[typing.List[ForwardRef('T')]]
-            # replace it with Mapped[List[sqlmodel_cls]]
-            origin = get_origin(old)
-            inner = get_args(old)
-            if origin == Mapped and len(inner) and get_origin(inner[0]) is list:
-                other_class.__annotations__[back_populates] = Mapped[List[sqlmodel_cls]]
-                # TODO: rebuild the relationships, so Declarative mapping works
+        if has_relationship:
+            if has_many_to_one_relationship:
+                type_class = field.type
+                other_class = type_class.__args__[0].__sqlmodel__
+                old = other_class.__annotations__[back_populates]
+                # Should be sqlalchemy.orm.base.Mapped[typing.List[ForwardRef('T')]]
+                # replace it with Mapped[List[sqlmodel_cls]]
+                origin = get_origin(old)
+                inner = get_args(old)
+                if origin == Mapped and len(inner) and get_origin(inner[0]) is list:
+                    other_class.__annotations__[back_populates] = Mapped[
+                        List[sqlmodel_cls]
+                    ]
+                    other_class.sqlmodel_rebuild()
+            else:
+                # Replace Optional['T'] with Optional[TSQLModel]
+                old = field.type
+                origin = get_origin(old)
+                inner = get_args(old)
+                if (
+                    origin == Union
+                    and len(inner)
+                    and inner[0] == ForwardRef(cls.__name__)
+                ):
+                    sqlmodel_cls.__annotations__[field.name] = Optional[sqlmodel_cls]
 
     def decorator(cls):
         # Check if the class is a dataclass

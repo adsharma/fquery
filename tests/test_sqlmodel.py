@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -17,10 +17,15 @@ class User:
     email: str
     created_at: datetime = None
     updated_at: datetime = None
-    friend: Optional["User"] = field(
+    friend_id: Optional[int] = field(
         default=None, metadata={"SQL": {"foreign_key": "users.id"}}
     )
-    # reviews: List["Review"] = field(default=None, metadata={"SQL": {"relationship": True}})
+    friend: Optional["User"] = field(
+        default=None, metadata={"SQL": {"relationship": True, "back_populates": False}}
+    )
+    reviews: List["Review"] = field(
+        default=None, metadata={"SQL": {"relationship": True}}
+    )
 
 
 @model(global_id=True)
@@ -28,7 +33,12 @@ class User:
 class Review:
     id: int | None = None
     score: int
-    # user: Optional[User] = field(default=None, metadata={"SQL": {"relationship": True, "many_to_one": True}})
+    user_id: Optional[int] = field(
+        default=None, metadata={"SQL": {"foreign_key": "users.id"}}
+    )
+    user: Optional[User] = field(
+        default=None, metadata={"SQL": {"relationship": True, "many_to_one": True}}
+    )
 
 
 @model(global_id=True)
