@@ -194,7 +194,9 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
                 if many_to_one:
                     type_class = cfield.type
                     other_class = type_class.__args__[0]
-                    other_class = getattr(other_class, "__name__", None)
+                    if isinstance(other_class, ForwardRef):
+                        other_class = other_class.__forward_arg__
+                    other_class = getattr(other_class, "__name__", other_class)
                     key_table_name = default_table_name(other_class)
                     key_column_name = sql_meta.get(
                         "key_column_name", f"{key_table_name}.id"
