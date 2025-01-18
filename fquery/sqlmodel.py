@@ -43,7 +43,7 @@ SQL_PK = {"metadata": {"SQL": {"primary_key": True}}}
 
 
 def unique():
-    pass
+    return field(default=None, metadata={"SQL": {"unique": True}})
 
 
 def foreignkey(name):
@@ -85,11 +85,12 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
         return self.__sqlmodel__(**attrs)
 
     def get_field_def(cls, field) -> Union[Field, Relationship]:
-        if field.default == unique:
-            return Field(unique=True)
         sql_meta = field.metadata.get("SQL", {})
         has_foreign_key = bool(sql_meta.get("foreign_key", None))
         has_relationship = bool(sql_meta.get("relationship", None))
+        has_unique_constraint = sql_meta.get("unique", False)
+        if has_unique_constraint:
+            return Field(unique=True)
 
         if not sql_meta or not (has_foreign_key or has_relationship):
             return Field(
