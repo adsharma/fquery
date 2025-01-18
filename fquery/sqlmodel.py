@@ -56,10 +56,13 @@ def one_to_many():
     return field(default=None, metadata={"SQL": {"relationship": True}})
 
 
-def many_to_one(back_populates=None):
+def many_to_one(key_column=None, back_populates=None):
     ret = field(
         default=None, metadata={"SQL": {"relationship": True, "many_to_one": True}}
     )
+    # if key_column is None, we default to {key_table_name}.id
+    if key_column is not None:
+        ret.metadata["SQL"]["key_column"] = key_column
     if back_populates is not None:
         ret.metadata["SQL"][back_populates] = back_populates
     return ret
@@ -187,16 +190,21 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
                 many_to_one = sql_meta.get("many_to_one", False)
                 foreign_key_name = cfield.name + "_id"
                 key_table_name = table_name
+                key_column_name = f"{key_table_name}.id"
                 if many_to_one:
                     type_class = cfield.type
                     other_class = type_class.__args__[0]
                     other_class = getattr(other_class, "__name__", None)
                     key_table_name = default_table_name(other_class)
+                    key_column_name = sql_meta.get(
+                        "key_column_name", f"{key_table_name}.id"
+                    )
                 back_populates = sql_meta.get("back_populates", None)
                 if back_populates is False or many_to_one:
+
                     new_field = field(
                         default=None,
-                        metadata={"SQL": {"foreign_key": f"{key_table_name}.id"}},
+                        metadata={"SQL": {"foreign_key": key_column_name}},
                     )
                     new_field._field_type = _FIELD
                     new_field.name = foreign_key_name
