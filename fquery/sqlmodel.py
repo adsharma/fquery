@@ -48,7 +48,10 @@ def unique():
 
 def foreign_key(name):
     return field(
-        default=None, metadata={"SQL": {"relationship": True, "back_populates": False}}
+        default=None,
+        metadata={
+            "SQL": {"relationship": True, "back_populates": False, "fk_name": name}
+        },
     )
 
 
@@ -210,7 +213,7 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
                 many_to_one = sql_meta.get("many_to_one", False)
                 foreign_key_name = cfield.name + "_id"
                 key_table_name = table_name
-                key_column_name = f"{key_table_name}.id"
+                key_column_name = sql_meta.get("fk_name", f"{key_table_name}.id")
                 if many_to_one:
                     type_class = cfield.type
                     other_class = type_class.__args__[0]
