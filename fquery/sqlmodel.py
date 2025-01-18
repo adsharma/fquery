@@ -46,7 +46,7 @@ def unique():
     return field(default=None, metadata={"SQL": {"unique": True}})
 
 
-def foreignkey(name):
+def foreign_key(name):
     return field(
         default=None, metadata={"SQL": {"relationship": True, "back_populates": False}}
     )

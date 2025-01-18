@@ -8,7 +8,7 @@ from sqlmodel import SQLModel
 
 from fquery.sqlmodel import (
     SQL_PK,
-    foreignkey,
+    foreign_key,
     many_to_one,
     one_to_many,
     sqlmodel,
@@ -24,7 +24,7 @@ class User:
     created_at: datetime = None
     updated_at: datetime = None
 
-    friend: Optional["User"] = foreignkey("users.id")
+    friend: Optional["User"] = foreign_key("users.id")
     reviews: List["Review"] = one_to_many()
 
 
