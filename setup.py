@@ -29,7 +29,7 @@ setuptools.setup(
     extras_require={
         "SQL": [
             "pypika >= 0.36.5",
-            "sqlmodel >= 0.0.22",
+            "sqlmodel@git+https://github.com/adsharma/sqlmodel.git@sqlmodel_rebuild",
             "duckdb_engine >= 0.14.0",
             "inflection >= 0.5.1",
         ],
