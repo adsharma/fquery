@@ -1,3 +1,4 @@
+import dataclasses
 from dataclasses import _FIELD, dataclass, field, fields, is_dataclass
 from datetime import date, datetime, time
 from typing import (
@@ -99,8 +100,11 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
             return Field(unique=True)
 
         if not sql_meta or not (has_foreign_key or has_relationship):
+            sql_default_factory = field.default_factory
+            if isinstance(sql_default_factory, dataclasses._MISSING_TYPE):
+                sql_default_factory = None
             return Field(
-                default_factory=getattr(cls, field.name, None),
+                default_factory=sql_default_factory,
                 # TODO: revisit the idea of using string for unknown types
                 sa_column=Column(
                     SA_TYPEMAP.get(field.type, String),
