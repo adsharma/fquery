@@ -3,6 +3,7 @@ from dataclasses import _FIELD, dataclass, field, fields, is_dataclass
 from datetime import date, datetime, time
 from typing import (
     ClassVar,
+    Dict,
     ForwardRef,
     List,
     Optional,
@@ -14,6 +15,7 @@ from typing import (
 
 import inflection
 from sqlalchemy import (
+    JSON,
     Boolean,
     Date,
     DateTime,
@@ -37,6 +39,7 @@ SA_TYPEMAP = {
     date: Date,
     time: Time,
     bytes: LargeBinary,  # or Binary for smaller data
+    Dict: JSON,
 }
 
 GLOBAL_ID_SEQ = Sequence("global_id_seq")  # define sequence explicitly
