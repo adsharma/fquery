@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 from .async_utils import wait_for
 from .execute import AbstractSyntaxTreeVisitor
 from .malloy_builder import MalloyBuilderVisitor
+from .polars_builder import PolarsBuilderVisitor
 from .sql_builder import SQLBuilderVisitor
 from .view_model import ViewModel, get_edges, get_return_type
 from .walk import (
@@ -255,6 +256,16 @@ class Query:
         visitor = MalloyBuilderVisitor([])
         wait_for(visitor.visit(self))
         return visitor.malloy
+
+    def to_polars(self) -> Tree:
+        visitor = PolarsBuilderVisitor([])
+        wait_for(visitor.visit(self))
+        return visitor.polars.collect()
+
+    async def to_async_polars(self) -> Tree:
+        visitor = PolarsBuilderVisitor([])
+        await visitor.visit(self)
+        return await visitor.polars.collect_async()
 
     def batch_resolve_objs(self) -> List[Dict[str, List[ViewModel]]]:
         return [{str(None): [o for o in (self.resolve_obj(i) for i in self.ids) if o]}]

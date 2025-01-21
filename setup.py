@@ -34,5 +34,6 @@ setuptools.setup(
             "inflection >= 0.5.1",
         ],
         "graphql": ["strawberry >= 0.37.1"],
+        "df": ["polars >= 0.12.0"],
     },
 )
