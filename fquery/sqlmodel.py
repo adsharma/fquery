@@ -59,8 +59,11 @@ def foreign_key(name):
     )
 
 
-def one_to_many():
-    return field(default=None, metadata={"SQL": {"relationship": True}})
+def one_to_many(back_populates=None):
+    return field(
+        default=None,
+        metadata={"SQL": {"relationship": True, "back_populates": back_populates}},
+    )
 
 
 def many_to_one(key_column=None, back_populates=None):

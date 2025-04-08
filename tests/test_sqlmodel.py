@@ -25,13 +25,21 @@ class User:
     updated_at: datetime = None
 
     friend: Optional["User"] = foreign_key("users.id")
-    reviews: List["Review"] = one_to_many()
+    reviews: List["Review"] = one_to_many("author")
+    visits: List["Visit"] = one_to_many()
 
 
 @sqlmodel
 class Review:
     id: int | None = None
     score: int
+    author: Optional[User] = many_to_one("users.id")
+
+
+@sqlmodel
+class Visit:
+    id: int | None = None
+    place: str
     user: Optional[User] = many_to_one("users.id")
 
 
