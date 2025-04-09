@@ -97,6 +97,15 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
         attrs = {name: getattr(self, name) for name in self.__sqlmodel__.__fields__}
         return self.__sqlmodel__(**attrs)
 
+    def check_self_reference(clsname: str, field):
+        # Check if the field is a self-referential relationship
+        if (
+            field.type == ForwardRef(clsname)
+            or field.type == Optional[ForwardRef(clsname)]
+        ):
+            return True
+        return False
+
     def get_field_def(cls, field) -> Union[Field, Relationship]:
         sql_meta = field.metadata.get("SQL", {})
         has_foreign_key = bool(sql_meta.get("foreign_key", None))
@@ -129,7 +138,16 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
                 back_populates = inflection.underscore(cls.__name__)
                 if sql_meta.get("many_to_one", False):
                     back_populates = inflection.pluralize(back_populates)
-            return Relationship(back_populates=back_populates)
+
+            key_column = sql_meta.get("key_column", None)
+            self_reference = check_self_reference(cls.__name__, field)
+            sa_relationship_kwargs = (
+                dict(remote_side=key_column) if key_column and self_reference else None
+            )
+            return Relationship(
+                back_populates=back_populates,
+                sa_relationship_kwargs=sa_relationship_kwargs,
+            )
         if has_foreign_key:
             return Field(default=None, foreign_key=sql_meta["foreign_key"])
         raise "Unsupported case"
@@ -169,20 +187,18 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
                     # TODO: log exception?
                     pass
                 inner = type_class.__args__[0]
-                if isinstance(inner, ForwardRef):
-                    # can't patch right now. Try at a later time via back_populates
-                    return
-                other_class = inner.__sqlmodel__
-                old = other_class.__annotations__[back_populates]
-                # Should be sqlalchemy.orm.base.Mapped[typing.List[ForwardRef('T')]]
-                # replace it with Mapped[List[sqlmodel_cls]]
-                origin = get_origin(old)
-                inner = get_args(old)
-                if origin == Mapped and len(inner) and get_origin(inner[0]) is list:
-                    other_class.__annotations__[back_populates] = Mapped[
-                        List[sqlmodel_cls]
-                    ]
-                    other_class.sqlmodel_rebuild()
+                if not isinstance(inner, ForwardRef):
+                    other_class = inner.__sqlmodel__
+                    old = other_class.__annotations__[back_populates]
+                    # Should be sqlalchemy.orm.base.Mapped[typing.List[ForwardRef('T')]]
+                    # replace it with Mapped[List[sqlmodel_cls]]
+                    origin = get_origin(old)
+                    inner = get_args(old)
+                    if origin == Mapped and len(inner) and get_origin(inner[0]) is list:
+                        other_class.__annotations__[back_populates] = Mapped[
+                            List[sqlmodel_cls]
+                        ]
+                        other_class.sqlmodel_rebuild()
 
         # Replace Optional['T'] with Optional[TSQLModel]
         old = field.type
@@ -191,6 +207,9 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
         needs_rebuild = False
         if origin == Union and len(inner) and inner[0] == ForwardRef(cls.__name__):
             sqlmodel_cls.__annotations__[field.name] = Optional[sqlmodel_cls]
+            needs_rebuild = True
+        if origin == list and len(inner) and inner[0] == ForwardRef(cls.__name__):
+            sqlmodel_cls.__annotations__[field.name] = List[sqlmodel_cls]
             needs_rebuild = True
 
         # Replace Optional[T] with Optional[TSQLModel] if T is a dataclass
