@@ -17,9 +17,7 @@ class Topic:
     probability: Optional[float] = None
     level: int
     combined_prob: Optional[float] = None
-    parent: Optional["Topic"] = many_to_one(
-        "TopicSQLModel.id", back_populates="children"
-    )
+    parent: Optional["Topic"] = many_to_one("Topic.id", back_populates="children")
     children: List["Topic"] = one_to_many(back_populates="parent")
 
 

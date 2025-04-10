@@ -72,6 +72,11 @@ def many_to_one(key_column=None, back_populates=None):
     )
     # if key_column is None, we default to {key_table_name}.id
     if key_column is not None:
+        # Transform Table.id into TableSQLModel.id
+        splits = key_column.split(".")
+        if len(splits) >= 1:
+            splits[0] = f"{splits[0]}SQLModel"
+        key_column = ".".join(splits)
         ret.metadata["SQL"]["key_column"] = key_column
     if back_populates is not None:
         ret.metadata["SQL"]["back_populates"] = back_populates
