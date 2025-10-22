@@ -44,4 +44,3 @@ fquery with Django and get easy access to graphql functionality
 This project is made available under the Apache License, version 2.0.
 
 See [LICENSE.txt](license.txt) for details.
-
