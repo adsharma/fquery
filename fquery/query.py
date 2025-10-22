@@ -10,9 +10,9 @@ from types import FunctionType
 from typing import Dict, List, Optional, Tuple, Type, Union
 
 from .async_utils import wait_for
+from .cypher_builder import CypherBuilderVisitor
 from .execute import AbstractSyntaxTreeVisitor
 from .malloy_builder import MalloyBuilderVisitor
-from .cypher_builder import CypherBuilderVisitor
 from .polars_builder import PolarsBuilderVisitor
 from .sql_builder import SQLBuilderVisitor
 from .view_model import ViewModel, get_edges, get_return_type
@@ -261,7 +261,18 @@ class Query:
     def to_cypher(self) -> str:
         visitor = CypherBuilderVisitor([])
         wait_for(visitor.visit(self))
-        return visitor.cypher
+        # Build the final query
+        match_pattern = "MATCH " + "-".join(visitor.match_parts)
+        qstr = match_pattern
+        if visitor.where_clauses:
+            qstr += "\nWHERE " + " AND ".join(visitor.where_clauses)
+        if visitor.return_clause:
+            qstr += "\n" + visitor.return_clause
+        if visitor.order_by_clause:
+            qstr += "\n" + visitor.order_by_clause
+        if visitor.limit_clause:
+            qstr += "\n" + visitor.limit_clause
+        return qstr
 
     def to_polars(self) -> Tree:
         visitor = PolarsBuilderVisitor([])
