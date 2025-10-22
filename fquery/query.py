@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 from .async_utils import wait_for
 from .execute import AbstractSyntaxTreeVisitor
 from .malloy_builder import MalloyBuilderVisitor
+from .cypher_builder import CypherBuilderVisitor
 from .polars_builder import PolarsBuilderVisitor
 from .sql_builder import SQLBuilderVisitor
 from .view_model import ViewModel, get_edges, get_return_type
@@ -256,6 +257,11 @@ class Query:
         visitor = MalloyBuilderVisitor([])
         wait_for(visitor.visit(self))
         return visitor.malloy
+
+    def to_cypher(self) -> str:
+        visitor = CypherBuilderVisitor([])
+        wait_for(visitor.visit(self))
+        return visitor.cypher
 
     def to_polars(self) -> Tree:
         visitor = PolarsBuilderVisitor([])
