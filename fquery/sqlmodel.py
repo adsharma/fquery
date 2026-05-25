@@ -99,7 +99,10 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
     """
 
     def sqlmodel(self) -> SQLModel:
-        attrs = {name: getattr(self, name) for name in self.__sqlmodel__.__fields__}
+        model_fields = getattr(self.__sqlmodel__, "model_fields", None)
+        if model_fields is None:
+            model_fields = getattr(self.__sqlmodel__, "__fields__", {})
+        attrs = {name: getattr(self, name) for name in model_fields}
         return self.__sqlmodel__(**attrs)
 
     def check_self_reference(clsname: str, field):
