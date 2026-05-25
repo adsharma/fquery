@@ -30,8 +30,8 @@ graphql = ["strawberry-graphql >= 0.37.1"]
 df = ["polars >= 0.12.0"]
 test = ["sqlalchemy >= 2.0.36"]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest",
     "polars >= 0.12.0",
     "pydantic",
