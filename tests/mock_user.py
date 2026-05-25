@@ -8,13 +8,14 @@ import random
 from dataclasses import dataclass
 from typing import List
 
-from fquery.query import query
 from fquery.view_model import edge, node
 
 
 @dataclass
 @node
 class MockUser:
+    QUERY_NAME = "UserQuery"
+
     name: str
     age: int
 
@@ -44,6 +45,8 @@ class MockUser:
 @dataclass
 @node
 class MockReview:
+    QUERY_NAME = "ReviewQuery"
+
     business: str
     rating: int
 
@@ -64,11 +67,5 @@ class MockReview:
         return r
 
 
-@query
-class UserQuery:
-    TYPE = MockUser
-
-
-@query
-class ReviewQuery:
-    TYPE = MockReview
+UserQuery = MockUser.query()
+ReviewQuery = MockReview.query()

@@ -7,6 +7,7 @@ import operator
 
 from pypika import Query, Tables
 
+from .naming import query_type_name
 from .visitor import Visitor
 
 # inspired from pandas.core.computation.ops
@@ -30,10 +31,7 @@ class SQLBuilderVisitor(Visitor):
 
     @staticmethod
     def table_from_query(query):
-        query_name = query.__class__.__name__.lower()
-        # UserQuery -> user
-        query_name = query_name.split("query")[0]
-        return Query.from_(query_name)
+        return Query.from_(query_type_name(query.__class__).lower())
 
     async def visit_leaf(self, query):
         self.sql = self.table_from_query(query)

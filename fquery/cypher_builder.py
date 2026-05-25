@@ -5,6 +5,7 @@
 import ast
 import operator
 
+from .naming import query_type_name
 from .visitor import Visitor
 
 # inspired from pandas.core.computation.ops
@@ -35,10 +36,7 @@ class CypherBuilderVisitor(Visitor):
 
     @staticmethod
     def table_from_query(query):
-        query_name = query.__class__.__name__.lower()
-        # UserQuery -> user -> User
-        query_name = query_name.split("query")[0]
-        return query_name.capitalize()
+        return query_type_name(query.__class__).capitalize()
 
     def _get_next_node_var(self):
         self.node_counter += 1

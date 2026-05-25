@@ -1,6 +1,7 @@
 import ast
 import operator
 
+from .naming import query_type_name
 from .visitor import Visitor
 
 # inspired from pandas.core.computation.ops
@@ -26,10 +27,7 @@ class MalloyBuilderVisitor(Visitor):
 
     @staticmethod
     def table_from_query(query):
-        query_name = query.__class__.__name__.lower()
-        # UserQuery -> user
-        query_name = query_name.split("query")[0]
-        return query_name
+        return query_type_name(query.__class__).lower()
 
     @staticmethod
     def _indent():

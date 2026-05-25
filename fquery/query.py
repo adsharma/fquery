@@ -13,6 +13,7 @@ from .async_utils import wait_for
 from .cypher_builder import CypherBuilderVisitor
 from .execute import AbstractSyntaxTreeVisitor
 from .malloy_builder import MalloyBuilderVisitor
+from .naming import query_type_name
 from .polars_builder import PolarsBuilderVisitor
 from .sql_builder import SQLBuilderVisitor
 from .view_model import ViewModel, get_edges, get_return_type
@@ -99,7 +100,7 @@ class Query:
         "Transforms UserQuery -> user"
         if self.OP != QueryableOp.LEAF:
             return "x"
-        return self.__class__.__name__[: len("Query") - 1].lower()
+        return query_type_name(self.__class__).lower()
 
     @classmethod
     def _get_temp(cls) -> int:
@@ -310,25 +311,43 @@ class Query:
             yield item
 
 
-def query(cls):
+def _default_query_class_name(node_cls: Type[ViewModel]) -> str:
+    return getattr(node_cls, "QUERY_NAME", f"{node_cls.__name__}Query")
+
+
+def make_query_type(
+    node_cls: Type[ViewModel],
+    name: Optional[str] = None,
+    namespace: Optional[Dict] = None,
+) -> Type[Query]:
     def constructor(self, ids=None, items=None):
         Query.__init__(self, None, ids, items)
 
     @staticmethod
     def resolve_obj(_id: int, edge: str = "") -> Optional[ViewModel]:
-        return cls.TYPE.get(_id)
+        return node_cls.get(_id)
 
-    cls = type(cls.__name__, (Query,), dict(cls.__dict__))
-    node_cls = cls.TYPE
+    namespace = dict(namespace or {})
+    namespace.pop("__dict__", None)
+    namespace.pop("__weakref__", None)
+    cls_name = name or namespace.get("__name__") or _default_query_class_name(node_cls)
+    namespace["TYPE"] = node_cls
+    namespace["QUERY_NAME"] = cls_name
+    cls = type(cls_name, (Query,), namespace)
     edges = get_edges(node_cls)
     cls.EDGE_NAME_TO_RETURN_TYPE = {
         name: get_return_type(func._old) for name, func in edges.items()
     }
     Query.ALL_QUERIES.append(cls)
+    Query.CLASS_TO_QUERIES[node_cls.__name__] = cls
     cls.OP = QueryableOp.LEAF
     cls.__init__ = constructor
     cls.resolve_obj = resolve_obj
     return cls
+
+
+def query(cls):
+    return make_query_type(cls.TYPE, cls.__name__, dict(cls.__dict__))
 
 
 class ProjectQueryable(Query):

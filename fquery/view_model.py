@@ -66,7 +66,17 @@ def node(cls):
     def post_init(self):
         ViewModel.__init__(self, {})
 
-    extra = {"__post_init__": post_init}
+    @classmethod
+    def query(model_cls):
+        query_cls = getattr(model_cls, "__query_type__", None)
+        if query_cls is None:
+            from .query import make_query_type
+
+            query_cls = make_query_type(model_cls)
+            model_cls.__query_type__ = query_cls
+        return query_cls
+
+    extra = {"__post_init__": post_init, "query": query}
     cls = type(cls.__name__, (ViewModel,), {**cls.__dict__, **extra})
     return cls
 
