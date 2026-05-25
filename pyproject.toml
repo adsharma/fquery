@@ -20,27 +20,84 @@ classifiers = [
 dependencies = ["aioitertools"]
 
 [project.optional-dependencies]
-SQL = [
+fquery = [
+    "aioitertools",
+]
+pydantic = [
+    "pydantic",
+]
+sql = [
     "pypika >= 0.36.5",
+]
+sqlmodel = [
     "sqlmodel@git+https://github.com/adsharma/sqlmodel.git@sqlmodel_rebuild",
     "duckdb_engine >= 0.14.0",
     "inflection >= 0.5.1",
+    "sqlalchemy >= 2.0.36",
 ]
-graphql = ["strawberry-graphql >= 0.37.1"]
-df = ["polars >= 0.12.0"]
-test = ["sqlalchemy >= 2.0.36"]
+graphql = [
+    "strawberry-graphql >= 0.37.1",
+]
+polars = [
+    "polars >= 0.12.0",
+]
+pyarrow = [
+    "pyarrow",
+]
+django = [
+    "django",
+]
+malloy = []
+cypher = []
+test = [
+    "pytest",
+]
+df = [
+    "polars >= 0.12.0",
+]
 
 [dependency-groups]
-dev = [
-    "pytest",
-    "polars >= 0.12.0",
+fquery = [
+    "aioitertools",
+]
+pydantic = [
     "pydantic",
-    "sqlalchemy >= 2.0.36",
+]
+sql = [
     "pypika >= 0.36.5",
+]
+sqlmodel = [
     "sqlmodel@git+https://github.com/adsharma/sqlmodel.git@sqlmodel_rebuild",
     "duckdb_engine >= 0.14.0",
     "inflection >= 0.5.1",
+    "sqlalchemy >= 2.0.36",
+]
+graphql = [
     "strawberry-graphql >= 0.37.1",
+]
+polars = [
+    "polars >= 0.12.0",
+]
+pyarrow = [
+    "pyarrow",
+]
+django = [
+    "django",
+]
+malloy = []
+cypher = []
+test = [
+    "pytest",
+]
+dev = [
+    { include-group = "test" },
+    { include-group = "pydantic" },
+    { include-group = "sql" },
+    { include-group = "sqlmodel" },
+    { include-group = "graphql" },
+    { include-group = "polars" },
+    { include-group = "pyarrow" },
+    { include-group = "django" },
 ]
 
 [tool.isort]

@@ -25,15 +25,23 @@ setuptools.setup(
     python_requires=">=3.6",
     test_suite="tests",
     install_requires=["aioitertools"],
-    test_requires=["sqlalchemy >= 2.0.36"],
+    test_requires=["pytest"],
     extras_require={
-        "SQL": [
-            "pypika >= 0.36.5",
+        "fquery": ["aioitertools"],
+        "pydantic": ["pydantic"],
+        "sql": ["pypika >= 0.36.5"],
+        "sqlmodel": [
             "sqlmodel@git+https://github.com/adsharma/sqlmodel.git@sqlmodel_rebuild",
             "duckdb_engine >= 0.14.0",
             "inflection >= 0.5.1",
+            "sqlalchemy >= 2.0.36",
         ],
-        "graphql": ["strawberry >= 0.37.1"],
+        "graphql": ["strawberry-graphql >= 0.37.1"],
+        "polars": ["polars >= 0.12.0"],
+        "pyarrow": ["pyarrow"],
+        "django": ["django"],
+        "malloy": [],
+        "cypher": [],
         "df": ["polars >= 0.12.0"],
     },
 )
