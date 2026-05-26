@@ -72,9 +72,12 @@ class Query:
         # from a child query.
         assert (bool(items) ^ bool(ids)) or child
         self._items = items
+        self._match_props = ids if isinstance(ids, dict) else {}
         if self._items:
             # pyre-fixme[16]: `ViewModel` has no attribute `id`.
             self.ids = [item.id for item in self._items]
+        elif isinstance(ids, dict):
+            self.ids = []
         else:
             self.ids = ids or []
 

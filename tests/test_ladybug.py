@@ -1,6 +1,6 @@
 from typing import List
 
-from fquery.ladybug import ladybug, ladybug_graph
+from fquery.ladybug import graph, graph_edge, ladybug
 from fquery.view_model import edge, node
 
 
@@ -52,110 +52,164 @@ class FakeArrowTable:
         return []
 
 
-@ladybug
-@node
-class LadybugUser:
-    name: str
-    age: int
+@graph
+class ReviewGraph:
+    @ladybug
+    @node
+    class User:
+        name: str
+        age: int
 
-    @edge
-    async def follow(self) -> List["LadybugUser"]:
-        yield self.follow
+        @edge
+        async def follows(self) -> List["User"]:
+            yield self.follows
 
-    @edge
-    async def reviews(self) -> List["LadybugReview"]:
-        yield self.reviews
+        @edge
+        async def reviews(self) -> List["Review"]:
+            yield self.reviews
+
+    @ladybug
+    @node
+    class Review:
+        business: str
+        rating: int
 
 
-@ladybug
-@node
-class LadybugReview:
-    business: str
-    rating: int
-
-
-@ladybug_graph
-class LadybugReviewGraph:
-    User = LadybugUser
-    Review = LadybugReview
+User = ReviewGraph.User
+Review = ReviewGraph.Review
 
 
 def test_ladybug_schema_and_to_cypher():
     conn = FakeConnection()
 
-    LadybugUser.create_schema(conn)
+    User.create_schema(conn)
 
     assert conn.executed == [
         (
-            "CREATE NODE TABLE LadybugUser(id INT64 PRIMARY KEY, name STRING, age INT64)",
+            "CREATE NODE TABLE User(id INT64 PRIMARY KEY, name STRING, age INT64)",
             None,
         ),
-        ("CREATE REL TABLE FOLLOW(FROM LadybugUser TO LadybugUser)", None),
-        ("CREATE REL TABLE REVIEWS(FROM LadybugUser TO LadybugReview)", None),
+        ("CREATE REL TABLE FOLLOWS(FROM User TO User)", None),
+        ("CREATE REL TABLE REVIEWS(FROM User TO Review)", None),
     ]
-    LadybugReview.query()
+    Review.query()
     assert (
-        LadybugUser.query()([1])
+        User.query()({"name": "Ada"})
         .edge("reviews")
         .project(["business", "rating"])
         .to_cypher()
-        == "MATCH (u:LadybugUser)-[:REVIEWS]->(n1:LadybugReview)\n"
+        == "MATCH (u:User {name: 'Ada'})-[:REVIEWS]->(n1:Review)\n"
         "RETURN n1.business, n1.rating"
     )
     assert (
-        LadybugUser.query()([1])
-        .edge("follow")
-        .edge("follow")
+        User.query()({"name": "Ada"})
+        .edge("follows")
+        .edge("follows")
         .project(["name"])
         .to_cypher()
-        == "MATCH (a:LadybugUser)-[e:FOLLOW*2..2]-(b:LadybugUser)\n"
+        == "MATCH (a:User {name: 'Ada'})-[e:FOLLOWS*2..2]-(b:User)\n"
         "RETURN b.name"
     )
 
 
-def test_ladybug_graph_schema_registration():
+def test_graph_schema_registration():
     conn = FakeConnection()
 
-    LadybugReviewGraph.create_schema(conn)
+    ReviewGraph.create_schema(conn)
 
     assert conn.executed == [
         (
-            "CREATE NODE TABLE LadybugUser(id INT64 PRIMARY KEY, name STRING, age INT64)",
+            "CREATE NODE TABLE User(id INT64 PRIMARY KEY, name STRING, age INT64)",
             None,
         ),
         (
-            "CREATE NODE TABLE LadybugReview(id INT64 PRIMARY KEY, business STRING, rating INT64)",
+            "CREATE NODE TABLE Review(id INT64 PRIMARY KEY, business STRING, rating INT64)",
             None,
         ),
-        ("CREATE REL TABLE FOLLOW(FROM LadybugUser TO LadybugUser)", None),
-        ("CREATE REL TABLE REVIEWS(FROM LadybugUser TO LadybugReview)", None),
+        ("CREATE REL TABLE FOLLOWS(FROM User TO User)", None),
+        ("CREATE REL TABLE REVIEWS(FROM User TO Review)", None),
     ]
 
 
 def test_ladybug_save_writes_node_and_edges():
     conn = FakeConnection()
-    review = LadybugReview(id=10, business="Cafe", rating=5)
-    user = LadybugUser(id=1, name="Ada", age=37)
-    followed = LadybugUser(id=2, name="Grace", age=42)
-    user.follow = [followed]
+    review = Review(id=10, business="Cafe", rating=5)
+    user = User(id=1, name="Ada", age=37)
+    followed = User(id=2, name="Grace", age=42)
+    user.follows = [followed]
     user.reviews = [review]
 
     user.save(conn)
 
     assert conn.executed == [
         (
-            "CREATE (n:LadybugUser {id: $id, name: $name, age: $age})",
+            "CREATE (n:User {id: $id, name: $name, age: $age})",
             {"id": 1, "name": "Ada", "age": 37},
         ),
         (
-            "MATCH (src:LadybugUser {id: $src_id}), "
-            "(dst:LadybugUser {id: $dst_id}) "
-            "CREATE (src)-[:FOLLOW]->(dst)",
+            "MATCH (src:User {id: $src_id}), "
+            "(dst:User {id: $dst_id}) "
+            "CREATE (src)-[:FOLLOWS]->(dst)",
             {"src_id": 1, "dst_id": 2},
         ),
         (
-            "MATCH (src:LadybugUser {id: $src_id}), "
-            "(dst:LadybugReview {id: $dst_id}) "
+            "MATCH (src:User {id: $src_id}), "
+            "(dst:Review {id: $dst_id}) "
+            "CREATE (src)-[:REVIEWS]->(dst)",
+            {"src_id": 1, "dst_id": 10},
+        ),
+    ]
+
+
+def test_graph_save_writes_nodes_then_edges():
+    conn = FakeConnection()
+    u1 = User(id=1, name="Ada", age=37)
+    u2 = User(id=2, name="Grace", age=42)
+    u3 = User(id=3, name="Linus", age=55)
+    r1 = Review(id=10, business="Cafe", rating=5)
+    graph = ReviewGraph(
+        nodes=[u1, u2, u3, r1],
+        edges=[
+            graph_edge("follows", u1, u2),
+            graph_edge("follows", u2, u3),
+            graph_edge("reviews", u1, r1),
+        ],
+    )
+
+    graph.save(conn)
+
+    assert conn.executed == [
+        (
+            "CREATE (n:User {id: $id, name: $name, age: $age})",
+            {"id": 1, "name": "Ada", "age": 37},
+        ),
+        (
+            "CREATE (n:User {id: $id, name: $name, age: $age})",
+            {"id": 2, "name": "Grace", "age": 42},
+        ),
+        (
+            "CREATE (n:User {id: $id, name: $name, age: $age})",
+            {"id": 3, "name": "Linus", "age": 55},
+        ),
+        (
+            "CREATE (n:Review {id: $id, business: $business, rating: $rating})",
+            {"id": 10, "business": "Cafe", "rating": 5},
+        ),
+        (
+            "MATCH (src:User {id: $src_id}), "
+            "(dst:User {id: $dst_id}) "
+            "CREATE (src)-[:FOLLOWS]->(dst)",
+            {"src_id": 1, "dst_id": 2},
+        ),
+        (
+            "MATCH (src:User {id: $src_id}), "
+            "(dst:User {id: $dst_id}) "
+            "CREATE (src)-[:FOLLOWS]->(dst)",
+            {"src_id": 2, "dst_id": 3},
+        ),
+        (
+            "MATCH (src:User {id: $src_id}), "
+            "(dst:Review {id: $dst_id}) "
             "CREATE (src)-[:REVIEWS]->(dst)",
             {"src_id": 1, "dst_id": 10},
         ),
@@ -166,15 +220,15 @@ def test_ladybug_arrow_helpers():
     conn = FakeConnection()
     table = FakeArrowTable()
     rel_table = object()
-    cypher = "MATCH (u:LadybugUser) RETURN u.name"
+    cypher = "MATCH (u:User) RETURN u.name"
 
-    LadybugUser.create_arrow_table(conn, table)
-    LadybugUser.create_arrow_rel_table(conn, "reviews", rel_table, LadybugReview)
-    result = LadybugUser.query_as_arrow(conn, cypher, chunk_size=64)
+    User.create_arrow_table(conn, table)
+    User.create_arrow_rel_table(conn, "reviews", rel_table, Review)
+    result = User.query_as_arrow(conn, cypher, chunk_size=64)
 
-    assert conn.arrow_tables == [("LadybugUser", table)]
+    assert conn.arrow_tables == [("User", table)]
     assert conn.arrow_rel_tables == [
-        ("REVIEWS", rel_table, "LadybugUser", "LadybugReview", "FLAT", None)
+        ("REVIEWS", rel_table, "User", "Review", "FLAT", None)
     ]
     assert result == "arrow-result"
     assert conn.arrow_queries == [(cypher, 64)]

@@ -7,42 +7,39 @@ import ladybug as lb
 import pyarrow as pa
 
 from fquery.arrow import arrow
-from fquery.ladybug import ladybug, ladybug_graph
+from fquery.ladybug import graph, graph_edge, ladybug
 from fquery.view_model import edge, node
 
 
-@ladybug
-@arrow
-@node
-class User:
-    name: str
-    age: int
+@graph
+class ReviewGraph:
+    @ladybug
+    @arrow
+    @node
+    class User:
+        name: str
+        age: int
 
-    @edge
-    async def follow(self) -> List["User"]:
-        yield self.follow
+        @edge
+        async def follows(self) -> List["User"]:
+            yield self.follows
 
-    @edge
-    async def reviews(self) -> List["Review"]:
-        yield self.reviews
+        @edge
+        async def reviews(self) -> List["Review"]:
+            yield self.reviews
+
+    @ladybug
+    @arrow
+    @node
+    class Review:
+        business: str
+        rating: int
 
 
-@ladybug
-@arrow
-@node
-class Review:
-    business: str
-    rating: int
-
-
+User = ReviewGraph.User
+Review = ReviewGraph.Review
 UserQuery = User.query()
 ReviewQuery = Review.query()
-
-
-@ladybug_graph
-class ReviewGraph:
-    User = User
-    Review = Review
 
 
 def save_demo() -> None:
@@ -51,28 +48,29 @@ def save_demo() -> None:
 
     ReviewGraph.create_schema(conn)
 
-    review = Review(id=10, business="Cafe", rating=5)
-    user = User(id=1, name="Ada", age=37)
-    follow1 = User(id=2, name="Grace", age=42)
-    follow2 = User(id=3, name="Linus", age=55)
-    user.reviews = [review]
-    user.follow = [follow1]
-    follow1.follow = [follow2]
-
-    review.save(conn)
-    follow2.save(conn, include_edges=False)
-    follow1.save(conn)
-    user.write(conn)
+    u1 = User(id=1, name="Ada", age=37)
+    u2 = User(id=2, name="Grace", age=42)
+    u3 = User(id=3, name="Linus", age=55)
+    r1 = Review(id=10, business="Cafe", rating=5)
+    graph = ReviewGraph(
+        nodes=[u1, u2, u3, r1],
+        edges=[
+            graph_edge("reviews", u1, r1),
+            graph_edge("follows", u1, u2),
+            graph_edge("follows", u2, u3),
+        ],
+    )
+    graph.save(conn)
 
     reviews_cypher = (
-        UserQuery([1])
+        UserQuery({"name": "Ada"})
         .edge("reviews")
         .project(["business", "rating"])
         .where(ast.Expr("review.rating >= 4"))
         .to_cypher()
     )
     assert reviews_cypher == (
-        "MATCH (u:User)-[:REVIEWS]->(n1:Review)\n"
+        "MATCH (u:User {name: 'Ada'})-[:REVIEWS]->(n1:Review)\n"
         "WHERE n1.rating >= 4\n"
         "RETURN n1.business, n1.rating"
     )
@@ -81,14 +79,20 @@ def save_demo() -> None:
     print(reviews_cypher)
     print(rows)
 
-    follow_cypher = (
-        UserQuery([1]).edge("follow").edge("follow").project(["name"]).to_cypher()
+    follows_cypher = (
+        UserQuery({"name": "Ada"})
+        .edge("follows")
+        .edge("follows")
+        .project(["name"])
+        .to_cypher()
     )
-    assert follow_cypher == "MATCH (a:User)-[e:FOLLOW*2..2]-(b:User)\nRETURN b.name"
-    follow_rows = conn.execute(follow_cypher).get_all()
-    assert ["Linus"] in follow_rows
-    print(follow_cypher)
-    print(follow_rows)
+    assert follows_cypher == (
+        "MATCH (a:User {name: 'Ada'})-[e:FOLLOWS*2..2]-(b:User)\nRETURN b.name"
+    )
+    follows_rows = conn.execute(follows_cypher).get_all()
+    assert ["Linus"] in follows_rows
+    print(follows_cypher)
+    print(follows_rows)
 
 
 def arrow_memory_demo() -> None:
@@ -116,30 +120,38 @@ def arrow_memory_demo() -> None:
     User.create_arrow_table(conn, users)
     Review.create_arrow_table(conn, reviews)
     User.create_arrow_rel_table(
-        conn, "follow", pa.table({"from": [1, 2], "to": [2, 3]}), User
+        conn, "follows", pa.table({"from": [1, 2], "to": [2, 3]}), User
     )
     User.create_arrow_rel_table(conn, "reviews", pa.table(review_edges), Review)
 
     cypher = (
-        UserQuery([1, 2]).edge("reviews").project(["business", "rating"]).to_cypher()
+        UserQuery({"name": "Ada"})
+        .edge("reviews")
+        .project(["business", "rating"])
+        .to_cypher()
     )
     result = User.query_as_arrow(conn, cypher, chunk_size=1024)
     table = result.get_as_arrow()
     assert table.to_pylist() == [
         {"n1.business": "Cafe", "n1.rating": 5},
-        {"n1.business": "Deli", "n1.rating": 4},
     ]
     print(table)
 
-    follow_cypher = (
-        UserQuery([1]).edge("follow").edge("follow").project(["name"]).to_cypher()
+    follows_cypher = (
+        UserQuery({"name": "Ada"})
+        .edge("follows")
+        .edge("follows")
+        .project(["name"])
+        .to_cypher()
     )
-    assert follow_cypher == "MATCH (a:User)-[e:FOLLOW*2..2]-(b:User)\nRETURN b.name"
-    follow_result = User.query_as_arrow(conn, follow_cypher, chunk_size=1024)
-    follow_table = follow_result.get_as_arrow()
-    assert {"b.name": "Linus"} in follow_table.to_pylist()
-    print(follow_cypher)
-    print(follow_table)
+    assert follows_cypher == (
+        "MATCH (a:User {name: 'Ada'})-[e:FOLLOWS*2..2]-(b:User)\nRETURN b.name"
+    )
+    follows_result = User.query_as_arrow(conn, follows_cypher, chunk_size=1024)
+    follows_table = follows_result.get_as_arrow()
+    assert {"b.name": "Linus"} in follows_table.to_pylist()
+    print(follows_cypher)
+    print(follows_table)
 
 
 if __name__ == "__main__":
