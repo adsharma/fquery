@@ -42,6 +42,7 @@ setuptools.setup(
         "django": ["django"],
         "malloy": [],
         "cypher": [],
+        "ladybug": ["ladybug; python_version >= '3.10'"],
         "df": ["polars >= 0.12.0"],
     },
 )
