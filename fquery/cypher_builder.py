@@ -36,7 +36,7 @@ class CypherBuilderVisitor(Visitor):
 
     @staticmethod
     def table_from_query(query):
-        return query_type_name(query.__class__).capitalize()
+        return query_type_name(query.__class__)
 
     def _get_next_node_var(self):
         self.node_counter += 1
