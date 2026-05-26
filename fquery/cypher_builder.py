@@ -4,6 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import ast
 import operator
+from typing import Any
 
 from .naming import query_type_name
 from .visitor import Visitor
@@ -38,6 +39,27 @@ class CypherBuilderVisitor(Visitor):
     def table_from_query(query):
         return query_type_name(query.__class__)
 
+    @staticmethod
+    def _cypher_literal(value: Any) -> str:
+        if value is None:
+            return "null"
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, (int, float)):
+            return str(value)
+        if isinstance(value, str):
+            escaped = value.replace("\\", "\\\\").replace("'", "\\'")
+            return f"'{escaped}'"
+        raise TypeError(f"Unsupported Cypher property value {value!r}")
+
+    def _node_pattern(self, var: str, label: str, props=None) -> str:
+        if not props:
+            return f"({var}:{label})"
+        prop_list = ", ".join(
+            f"{name}: {self._cypher_literal(value)}" for name, value in props.items()
+        )
+        return f"({var}:{label} {{{prop_list}}})"
+
     def _get_next_node_var(self):
         self.node_counter += 1
         return f"n{self.node_counter}"
@@ -45,7 +67,13 @@ class CypherBuilderVisitor(Visitor):
     async def visit_leaf(self, query):
         if not self.root_label:
             self.root_label = self.table_from_query(query)
-            self.match_parts = [f"({self.current_node}:{self.root_label})"]
+            self.match_parts = [
+                self._node_pattern(
+                    self.current_node,
+                    self.root_label,
+                    getattr(query, "_match_props", None),
+                )
+            ]
 
         if query in self.visited:
             # Prevent infinite recursion
@@ -92,7 +120,13 @@ class CypherBuilderVisitor(Visitor):
                 root_query = root_query.child
             if hasattr(root_query, "__class__"):
                 self.root_label = self.table_from_query(root_query)
-                self.match_parts = [f"({self.current_node}:{self.root_label})"]
+                self.match_parts = [
+                    self._node_pattern(
+                        self.current_node,
+                        self.root_label,
+                        getattr(root_query, "_match_props", None),
+                    )
+                ]
 
         edge_name = query.edge_name
 
@@ -106,6 +140,9 @@ class CypherBuilderVisitor(Visitor):
         )
 
         if has_same_edge_child:
+            root_query = query
+            while hasattr(root_query, "child") and root_query.child:
+                root_query = root_query.child
             # Count the total number of consecutive edges of the same type
             hops = 1  # current edge
             current_query = query.child
@@ -119,7 +156,11 @@ class CypherBuilderVisitor(Visitor):
 
             # This is the start of a multi-hop pattern (e.g., friend-of-friend, etc.)
             self.match_parts = [
-                f"(a:{self.root_label})",
+                self._node_pattern(
+                    "a",
+                    self.root_label,
+                    getattr(root_query, "_match_props", None),
+                ),
                 f"[e:{edge_name.upper()}*{hops}..{hops}]",
                 f"(b:{self.root_label})",
             ]

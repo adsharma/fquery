@@ -1,6 +1,6 @@
 import re
 import types
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, field, fields, is_dataclass
 from datetime import date, datetime, time
 from typing import (
     Any,
@@ -31,6 +31,13 @@ LADYBUG_TYPEMAP = {
 PARAM_RE = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
 
 
+@dataclass(frozen=True)
+class GraphEdge:
+    name: str
+    src: Any
+    dst: Any
+
+
 UNION_TYPES = (Union,)
 if hasattr(types, "UnionType"):
     UNION_TYPES = UNION_TYPES + (types.UnionType,)
@@ -45,10 +52,18 @@ def ladybug(cls):
     return model(cls)
 
 
-def ladybug_graph(cls):
+def graph(cls):
     """
     Decorator that registers a group of Ladybug-backed fquery nodes.
     """
+    if not is_dataclass(cls):
+        annotations = dict(getattr(cls, "__annotations__", {}))
+        annotations.setdefault("nodes", List[Any])
+        annotations.setdefault("edges", List[GraphEdge])
+        cls.__annotations__ = annotations
+        cls.nodes = field(default_factory=list)
+        cls.edges = field(default_factory=list)
+        cls = dataclass(kw_only=True)(cls)
 
     def create_schema(graph_cls, conn) -> None:
         models = _graph_models(graph_cls)
@@ -57,8 +72,25 @@ def ladybug_graph(cls):
         for model_cls in models:
             model_cls.create_edge_schema(conn)
 
+    def save(self, conn) -> None:
+        nodes, edges = _collect_graph(self)
+        for node in nodes:
+            node.save(conn, include_edges=False)
+        for src, edge_name, dst in edges:
+            _execute(
+                conn,
+                _edge_create(type(src), edge_name, type(dst)),
+                {"src_id": src.id, "dst_id": dst.id},
+            )
+
     cls.create_schema = classmethod(create_schema)
+    cls.save = save
+    cls.write = save
     return cls
+
+
+def graph_edge(name: str, src: Any, dst: Any) -> GraphEdge:
+    return GraphEdge(name, src, dst)
 
 
 def _graph_models(cls: Type) -> List[Type]:
@@ -67,6 +99,91 @@ def _graph_models(cls: Type) -> List[Type]:
         for value in cls.__dict__.values()
         if isinstance(value, type) and hasattr(value, "__ladybug_node_ddl__")
     ]
+
+
+def _is_ladybug_node(value) -> bool:
+    return hasattr(type(value), "__ladybug_node_ddl__")
+
+
+def _is_graph_edge(value) -> bool:
+    return isinstance(value, GraphEdge)
+
+
+def _iter_values(value):
+    if value is None:
+        return
+    if isinstance(value, dict):
+        for item in value.values():
+            yield item
+        return
+    if isinstance(value, (list, tuple, set)):
+        for item in value:
+            yield item
+        return
+    yield value
+
+
+def _is_graph_container(value) -> bool:
+    return isinstance(value, (dict, list, tuple, set))
+
+
+def _graph_roots(graph):
+    if is_dataclass(graph):
+        for graph_field in fields(graph):
+            yield getattr(graph, graph_field.name)
+        return
+    for name, value in vars(graph).items():
+        if not name.startswith("_"):
+            yield value
+
+
+def _collect_graph(graph):
+    nodes = []
+    edges = []
+    seen_nodes = set()
+    seen_edges = set()
+
+    def add_edge(edge_name, src, dst):
+        edge_key = (type(src), src.id, edge_name, type(dst), dst.id)
+        if edge_key in seen_edges:
+            return
+        seen_edges.add(edge_key)
+        edges.append((src, edge_name, dst))
+
+    def visit(value):
+        if _is_graph_edge(value):
+            visit(value.src)
+            visit(value.dst)
+            add_edge(value.name, value.src, value.dst)
+            return
+        if _is_ladybug_node(value):
+            visit_node(value)
+            return
+        for item in _iter_values(value):
+            if _is_graph_edge(item):
+                visit(item)
+            elif _is_ladybug_node(item):
+                visit_node(item)
+            elif _is_graph_container(item):
+                visit(item)
+
+    def visit_node(item):
+        node_key = (type(item), item.id)
+        if node_key in seen_nodes:
+            return
+        seen_nodes.add(node_key)
+        nodes.append(item)
+
+        for edge_name in get_edges(type(item)):
+            if edge_name not in item:
+                continue
+            for target in _iter_values(item[edge_name]):
+                visit(target)
+                add_edge(edge_name, item, target)
+
+    for root in _graph_roots(graph):
+        visit(root)
+    return nodes, edges
 
 
 def _table_name(cls: Type) -> str:
@@ -107,28 +224,28 @@ def _ladybug_type(annotation) -> str:
 
 
 def _node_fields(cls: Type):
-    return [field for field, _ in _node_field_types(cls)]
+    return [model_field for model_field, _ in _node_field_types(cls)]
 
 
 def _node_field_types(cls: Type):
     type_hints = get_type_hints(cls)
     pairs = []
-    for field in fields(cls):
-        annotation = type_hints.get(field.name, field.type)
-        if get_origin(annotation) is ClassVar or field.name.startswith("_"):
+    for model_field in fields(cls):
+        annotation = type_hints.get(model_field.name, model_field.type)
+        if get_origin(annotation) is ClassVar or model_field.name.startswith("_"):
             continue
-        pairs.append((field, annotation))
+        pairs.append((model_field, annotation))
     return pairs
 
 
 def _node_ddl(cls: Type) -> str:
     columns = []
-    for field, annotation in _node_field_types(cls):
-        col = f"{field.name} {_ladybug_type(annotation)}"
-        if field.name == "id":
+    for model_field, annotation in _node_field_types(cls):
+        col = f"{model_field.name} {_ladybug_type(annotation)}"
+        if model_field.name == "id":
             col += " PRIMARY KEY"
         columns.append(col)
-    if not any(field.name == "id" for field in _node_fields(cls)):
+    if not any(model_field.name == "id" for model_field in _node_fields(cls)):
         columns.insert(0, "id INT64 PRIMARY KEY")
     return f"CREATE NODE TABLE {_table_name(cls)}({', '.join(columns)})"
 
@@ -141,11 +258,16 @@ def _edge_ddl(cls: Type, edge_name: str, dst_table_name: str) -> str:
 
 
 def _node_params(obj) -> Dict[str, Any]:
-    return {field.name: getattr(obj, field.name) for field in _node_fields(type(obj))}
+    return {
+        model_field.name: getattr(obj, model_field.name)
+        for model_field in _node_fields(type(obj))
+    }
 
 
 def _node_create(cls: Type) -> str:
-    props = ", ".join(f"{field.name}: ${field.name}" for field in _node_fields(cls))
+    props = ", ".join(
+        f"{model_field.name}: ${model_field.name}" for model_field in _node_fields(cls)
+    )
     return f"CREATE (n:{_table_name(cls)} {{{props}}})"
 
 
