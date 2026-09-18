@@ -10,7 +10,7 @@ name = "fquery"
 version = "0.5"
 description = "A graph query engine"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 classifiers = [
     "Programming Language :: Python :: 3",
