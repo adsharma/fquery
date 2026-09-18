@@ -2,10 +2,12 @@ import dataclasses
 from dataclasses import _FIELD, dataclass, field, fields, is_dataclass
 from datetime import date, datetime, time
 from typing import (
+    Callable,
     ClassVar,
     Dict,
     ForwardRef,
     List,
+    Mapping,
     Optional,
     Union,
     get_args,
@@ -83,16 +85,55 @@ def many_to_one(key_column=None, back_populates=None):
     return ret
 
 
-def sqlmodel(cls):
-    return model()(dataclass(kw_only=True)(cls))
+# A namespace is either a static mapping or a callable taking the decorated
+# class and returning a mapping. Callables allow consumers (e.g. generated
+# packages with hundreds of lazily-imported models) to supply forward-ref
+# targets on demand instead of importing everything up front. Mirrors
+# fquery.pydantic's namespace hook; table creation itself stays eager.
+Namespace = Mapping | Callable[[type], Mapping]
 
 
-def model(table: bool = True, table_name: str = None, global_id: bool = False):
+def sqlmodel(
+    cls=None,
+    *,
+    table: bool = True,
+    table_name: str = None,
+    global_id: bool = False,
+    namespace: Namespace | None = None,
+):
+    """Decorate a class as an fquery sqlmodel dataclass.
+
+    Usable bare (``@sqlmodel``) or parametrized (``@sqlmodel(table=False,
+    namespace=...)``). ``namespace`` supplies extra names for resolving
+    forward references; it is inherited by subclasses unless they pass
+    their own.
+    """
+    decorator = model(
+        table=table,
+        table_name=table_name,
+        global_id=global_id,
+        namespace=namespace,
+    )
+    if cls is None:
+        return lambda c: decorator(dataclass(kw_only=True)(c))
+    return decorator(dataclass(kw_only=True)(cls))
+
+
+def model(
+    table: bool = True,
+    table_name: str = None,
+    global_id: bool = False,
+    namespace: Namespace | None = None,
+):
     """
     A decorator that generates a SQLModel from a dataclass.
 
     Args:
         table_name (str): The name of the database table. Defaults to the name of the dataclass.
+        namespace: Extra names for resolving forward references (static
+            mapping or callable taking the decorated class). Useful when
+            related classes are lazily imported and absent from module
+            globals at decoration time.
 
     Returns:
         A decorator that generates a SQLModel from a dataclass.
@@ -160,6 +201,56 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
             return Field(default=None, foreign_key=sql_meta["foreign_key"])
         raise "Unsupported case"
 
+    def resolve_namespace(cls):
+        provider = getattr(cls, "__sqlmodel_namespace__", namespace)
+        if callable(provider):
+            try:
+                return provider(cls)
+            except TypeError:
+                return provider()
+        return provider or {}
+
+    def type_hints(cls):
+        import sys as _sys
+
+        globalns = {}
+        for klass in getattr(cls, "__mro__", (cls,)):
+            mod = _sys.modules.get(getattr(klass, "__module__", ""))
+            if mod is not None:
+                for k, v in vars(mod).items():
+                    globalns.setdefault(k, v)
+        extra = resolve_namespace(cls)
+        if extra:
+            globalns.update(extra)
+        return get_type_hints(cls, globalns=globalns)
+
+    def rebuild_model(sqlmodel_cls, cls):
+        provider = getattr(cls, "__sqlmodel_namespace__", namespace)
+        if provider is None:
+            return
+        if getattr(sqlmodel_cls, "__pydantic_complete__", True):
+            return
+        import sys as _sys
+
+        ns = {}
+        for klass in getattr(cls, "__mro__", (cls,)):
+            mod = _sys.modules.get(getattr(klass, "__module__", ""))
+            if mod is not None:
+                for k, v in vars(mod).items():
+                    ns.setdefault(k, v)
+        extra = resolve_namespace(cls)
+        if extra:
+            ns.update(extra)
+        rebuild = getattr(sqlmodel_cls, "sqlmodel_rebuild", None) or getattr(
+            sqlmodel_cls, "model_rebuild", None
+        )
+        if rebuild is None:
+            return
+        try:
+            rebuild(_types_namespace=dict(ns))
+        except TypeError:
+            rebuild()
+
     def get_field_type(field, cls):
         sql_meta = field.metadata.get("SQL", {})
         has_foreign_key = bool(sql_meta.get("foreign_key", None))
@@ -174,12 +265,22 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
             other_class = type_class.__args__[0]
             if has_many_to_one_relationship:
                 try:
-                    type_class = get_type_hints(cls)[field.name]
+                    type_class = type_hints(cls)[field.name]
                 except NameError:
                     # TODO: log exception?
                     pass
                 else:
-                    return Optional[other_class.__sqlmodel__]
+                    # Use the resolved target, not the raw annotation:
+                    # the latter may still be a ForwardRef when the field
+                    # was declared as a string (e.g. Optional["Widget"]).
+                    args = get_args(type_class)
+                    target = args[0] if args else other_class
+                    if isinstance(target, ForwardRef):
+                        return field.type
+                    target_sqlmodel = getattr(target, "__sqlmodel__", None)
+                    if target_sqlmodel is None:
+                        return field.type
+                    return Optional[target_sqlmodel]
         return field.type
 
     def patch_back_populates_types(field, back_populates, cls, sqlmodel_cls):
@@ -190,7 +291,7 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
             if has_many_to_one_relationship:
                 type_class = field.type
                 try:
-                    type_class = get_type_hints(cls)[field.name]
+                    type_class = type_hints(cls)[field.name]
                 except NameError:
                     # TODO: log exception?
                     pass
@@ -297,6 +398,11 @@ def model(table: bool = True, table_name: str = None, global_id: bool = False):
             table=table,
         )
         cls.__sqlmodel__ = sqlmodel_cls
+        if namespace is not None:
+            cls.__sqlmodel_namespace__ = namespace
+        # Resolve remaining forward refs (e.g. targets supplied via the
+        # namespace hook that are absent from module globals).
+        rebuild_model(sqlmodel_cls, cls)
         # Update type annotations in any class with a relationship with this class to point
         # to the SQLModel, not the dataclass
         for cfield in fields(cls):

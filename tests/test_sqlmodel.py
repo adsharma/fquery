@@ -16,6 +16,49 @@ from fquery.sqlmodel import (
 )
 
 
+def test_sqlmodel_namespace_hook():
+    # Both classes live in function scope, invisible to module globals,
+    # so get_type_hints() can only resolve them via the namespace hook.
+    # Mirrors the User/Review pairing: Widget is decorated first with an
+    # unresolved forward ref, Gadget's hook completes both sides.
+    @sqlmodel(table=False)
+    class Widget:
+        id: int | None = None
+        name: str = ""
+        gadgets: List["Gadget"] = one_to_many("widget")
+
+    @sqlmodel(table=False, namespace={"Widget": Widget})
+    class Gadget:
+        id: int | None = None
+        widget: Optional["Widget"] = many_to_one("widgets.id")
+
+    # Relationship registered with back_populates, and the forward ref
+    # resolved to the generated SQLModel via the namespace hook.
+    assert (
+        Gadget.__sqlmodel__.__annotations__["widget"] == Optional[Widget.__sqlmodel__]
+    )
+    assert Gadget.__sqlmodel__.__sqlmodel_relationships__["widget"].back_populates == (
+        "gadgets"
+    )
+
+
+def test_sqlmodel_namespace_hook_callable():
+    seen = []
+
+    def provider(cls):
+        seen.append(cls.__name__)
+        return {}
+
+    @sqlmodel(namespace=provider)
+    class Gizmo:
+        id: int | None = None
+
+    # Nothing to resolve, so the hook is never consulted and normal
+    # decoration (tablename, fields) is unaffected.
+    assert seen == []
+    assert Gizmo.__sqlmodel__.__tablename__ == "gizmos"
+
+
 @sqlmodel
 class User:
     id: int | None = None
