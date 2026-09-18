@@ -30,7 +30,7 @@ sql = [
     "pypika >= 0.36.5",
 ]
 sqlmodel = [
-    "sqlmodel@git+https://github.com/adsharma/sqlmodel.git@sqlmodel_rebuild",
+    "sqlmodel >= 0.0.42",
     "duckdb_engine >= 0.14.0",
     "inflection >= 0.5.1",
     "sqlalchemy >= 2.0.36",
@@ -70,7 +70,11 @@ sql = [
     "pypika >= 0.36.5",
 ]
 sqlmodel = [
-    "sqlmodel@git+https://github.com/adsharma/sqlmodel.git@sqlmodel_rebuild",
+    # Dev-only override: fork with sqlmodel_rebuild support.
+    # Dependency groups are never published to PyPI, so a direct
+    # URL is fine here. Keep [project.optional-dependencies] on
+    # stock sqlmodel so `fquery` uploads cleanly.
+    "sqlmodel@git+https://github.com/adsharma/sqlmodel.git@sqlmodel_rebuild_0_0_42",
     "duckdb_engine >= 0.14.0",
     "inflection >= 0.5.1",
     "sqlalchemy >= 2.0.36",

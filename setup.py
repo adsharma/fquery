@@ -31,7 +31,9 @@ setuptools.setup(
         "pydantic": ["pydantic"],
         "sql": ["pypika >= 0.36.5"],
         "sqlmodel": [
-            "sqlmodel@git+https://github.com/adsharma/sqlmodel.git@sqlmodel_rebuild",
+            # Keep stock here so PyPI uploads work; the fork pin
+            # lives in pyproject [dependency-groups] for dev (uv).
+            "sqlmodel >= 0.0.42",
             "duckdb_engine >= 0.14.0",
             "inflection >= 0.5.1",
             "sqlalchemy >= 2.0.36",
