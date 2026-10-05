@@ -82,6 +82,26 @@ class SQLTests(unittest.TestCase):
         built = UserQuery(range(1, 10)).count().to_sql()
         self.assertEqual('SELECT COUNT(*) FROM "user"', built.sql)
 
+    def test_bind_rows(self):
+        import sqlite3
+
+        from fquery import env
+
+        conn = sqlite3.connect(":memory:")
+        conn.execute("CREATE TABLE user (id INTEGER, name TEXT, age INTEGER)")
+        conn.execute("INSERT INTO user VALUES (1, 'amy', 16)")
+        with env.connection(conn):
+            rows = (
+                UserQuery(range(1, 10))
+                .project(["user.id", "user.name"])
+                .where(ast.Expr('user.age == param("n")'))
+                .bind(n=16)
+                .rows()
+            )
+        self.assertEqual([{"id": 1, "name": "amy"}], rows)
+        with self.assertRaises(ValueError):
+            UserQuery(range(1, 10)).rows()
+
     def test_params(self):
         built = (
             UserQuery(range(1, 10))
