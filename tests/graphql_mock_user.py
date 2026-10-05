@@ -7,27 +7,27 @@ from typing import List, Optional
 
 from fquery.fgraphql import field, graphql, obj, root
 
-from .mock_user import MockReview, MockUser, ReviewQuery, UserQuery
+from .mock_user import Review, ReviewQuery, User, UserQuery
 
 
 @obj
-class GraphQLMockUser(MockUser):
+class GraphQLMockUser(User):
     @field
     async def friends(self) -> List["GraphQLMockUser"]:
-        _users = [u async for u in MockUser.friends(self)][0]
+        _users = [u async for u in User.friends(self)][0]
         return [GraphQLMockUser(u.id, u.name, u.age) for u in _users]
 
     @field
     async def reviews(self) -> List["GraphQLMockReview"]:
-        _reviews = [r async for r in MockUser.reviews(self)][0]
+        _reviews = [r async for r in User.reviews(self)][0]
         return [GraphQLMockReview(r.id, r.business, r.rating) for r in _reviews]
 
 
 @obj
-class GraphQLMockReview(MockReview):
+class GraphQLMockReview(Review):
     @field
     async def author(self) -> "GraphQLMockUser":
-        a = [r async for r in MockReview.author(self)][0]
+        a = [r async for r in Review.author(self)][0]
         return GraphQLMockUser(a.id, a.name, a.age)
 
 

@@ -13,7 +13,7 @@ from fquery.view_model import edge, node
 
 @dataclass
 @node
-class MockUser:
+class User:
     name: str
     age: int
 
@@ -22,46 +22,42 @@ class MockUser:
         return self.age
 
     @edge
-    async def friends(self) -> List["MockUser"]:
-        yield [MockUser.get(m) for m in range(3 * self.id, 3 * self.id + 3)]
+    async def friends(self) -> List["User"]:
+        yield [User.get(m) for m in range(3 * self.id, 3 * self.id + 3)]
 
     @edge
-    async def reviews(self) -> List["MockReview"]:
-        yield [
-            MockReview.get(m) for m in range(3 * self.id + 300, 3 * self.id + 300 + 5)
-        ]
+    async def reviews(self) -> List["Review"]:
+        yield [Review.get(m) for m in range(3 * self.id + 300, 3 * self.id + 300 + 5)]
 
     @staticmethod
-    def get(id: int) -> "MockUser":
+    def get(id: int) -> "User":
         # A typical implementation may fetch fields from a database
         # based on self.id here
-        u = MockUser(id=id, name=f"id{id}", age=random.choice([16, 17, 18]))
+        u = User(id=id, name=f"id{id}", age=random.choice([16, 17, 18]))
         u._type = 1
         return u
 
 
 @dataclass
 @node
-class MockReview:
+class Review:
     business: str
     rating: int
 
     @edge
-    async def author(self) -> MockUser:
+    async def author(self) -> User:
         # TODO: Figure out how to make this work for relational vs graph
         self._author = 1
-        yield MockUser.get(self._author)
+        yield User.get(self._author)
 
     @staticmethod
-    def get(id: int) -> "MockReview":
+    def get(id: int) -> "Review":
         # A typical implementation may fetch fields from a database
         # based on self.id here
-        r = MockReview(
-            id=id, business=f"business{id}", rating=random.choice(range(1, 6))
-        )
+        r = Review(id=id, business=f"business{id}", rating=random.choice(range(1, 6)))
         r._type = 2
         return r
 
 
-UserQuery = MockUser.query({"TABLE": "user"}, "UserQuery")
-ReviewQuery = MockReview.query({"TABLE": "review"}, "ReviewQuery")
+UserQuery = User.query()
+ReviewQuery = Review.query()
