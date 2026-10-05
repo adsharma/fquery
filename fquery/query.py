@@ -86,6 +86,7 @@ class Query:
             self.child: "Query" = child
             self._unbound_class: Type[Query] = child._unbound_class
         self.edges: List["Query"] = []
+        self._bindings = dict(getattr(child, "_bindings", {}))
         self.visited = False
         # Only one of the two below can be true
         self._as_dict = False
@@ -271,6 +272,26 @@ class Query:
         cur.execute(built.sql, built.params)
         cols = [d[0] for d in cur.description] if cur.description else []
         return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def bind(self, **bindings) -> "Query":
+        """Bind param() values into the chain (chainable, like project)."""
+        self._bindings = getattr(self, "_bindings", {})
+        self._bindings.update(bindings)
+        return self
+
+    def rows(self, extra=None) -> list:
+        """Run on the ambient connection (see fquery.env.use)."""
+        from .env import current
+
+        conn = current()
+        if conn is None:
+            raise ValueError(
+                "no ambient connection: fquery.env.use(conn) first"
+            )
+        params = dict(getattr(self, "_bindings", {}))
+        if extra:
+            params.update(extra)
+        return self.to_rows(conn, params or None)
 
     def to_malloy(self) -> str:
         visitor = MalloyBuilderVisitor([])
