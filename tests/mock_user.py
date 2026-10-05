@@ -14,8 +14,6 @@ from fquery.view_model import edge, node
 @dataclass
 @node
 class MockUser:
-    QUERY_NAME = "UserQuery"
-
     name: str
     age: int
 
@@ -45,8 +43,6 @@ class MockUser:
 @dataclass
 @node
 class MockReview:
-    QUERY_NAME = "ReviewQuery"
-
     business: str
     rating: int
 
@@ -67,5 +63,5 @@ class MockReview:
         return r
 
 
-UserQuery = MockUser.query()
-ReviewQuery = MockReview.query()
+UserQuery = MockUser.query({"TABLE": "user"}, "UserQuery")
+ReviewQuery = MockReview.query({"TABLE": "review"}, "ReviewQuery")
