@@ -3,53 +3,28 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 import ast
-import operator
 
-from pypika import Order, Query, Tables, functions
-from pypika.terms import Criterion
-
+from . import sql_render
 from .visitor import Visitor
 from .walk import JoinOn
 
-# inspired from pandas.core.computation.ops
 _cmp_ops = {
-    ast.Eq: operator.eq,
-    ast.NotEq: operator.ne,
-    ast.Lt: operator.lt,
-    ast.LtE: operator.le,
-    ast.Gt: operator.gt,
-    ast.GtE: operator.ge,
+    ast.Eq: "=",
+    ast.NotEq: "<>",
+    ast.Lt: "<",
+    ast.LtE: "<=",
+    ast.Gt: ">",
+    ast.GtE: ">=",
 }
 
-_order_funcs = {
-    "lower": functions.Lower,
-}
-
-
-class MatchCriterion(Criterion):
-    """Full-text MATCH (SQLite FTS5): "table"."col" MATCH 'query'."""
-
-    def __init__(self, field, query):
-        super().__init__(None)
-        self.field = field
-        self.query = query
-
-    @property
-    def tables_(self):
-        return {self.field.table}
-
-    def get_sql(self, **kwargs):
-        return "{field} MATCH {query}".format(
-            field=self.field.get_sql(**kwargs),
-            query=self.query.get_sql(**kwargs),
-        )
+_order_funcs = ("lower",)
 
 
 class SQLBuilderVisitor(Visitor):
     def __init__(self, id1s):
-        self.sql = None
+        self.select = None
         self.tables = {}
-        self.current_table = None
+        self.current_alias = ""
         self.visited = set()
 
     @staticmethod
@@ -77,26 +52,23 @@ class SQLBuilderVisitor(Visitor):
     def _table_for(self, query_cls):
         alias = self.alias_for(query_cls)
         if alias not in self.tables:
-            table = Tables(self.table_name_for(query_cls))[0]
-            # Alias only when the predicate prefix differs from the real
-            # table name, so single-table SQL renders exactly as before.
-            if alias != self.table_name_for(query_cls):
-                table = table.as_(alias)
-            self.tables[alias] = table
+            self.tables[alias] = sql_render.TableRef(
+                self.table_name_for(query_cls), alias
+            )
         return self.tables[alias]
 
-    def _field(self, table_alias, col):
-        try:
-            table = self.tables[table_alias]
-        except KeyError:
-            raise ValueError("unknown table alias: " + table_alias)
-        return table.__getattr__(col)
+    def _check_field(self, alias, col):
+        if alias not in self.tables:
+            raise ValueError("unknown table alias: " + alias)
+        return alias
 
     def _compile_field_ref(self, node):
         if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-            return self._field(node.value.id, node.attr)
+            return (self._check_field(node.value.id, node.attr), node.attr)
         if isinstance(node, ast.Name):
-            return self._field(self._alias_of_current(), node.id)
+            if not self.current_alias:
+                raise ValueError("no current table")
+            return (self.current_alias, node.id)
         raise ValueError("unsupported field: " + ast.dump(node))
 
     def _compile_compare(self, node):
@@ -104,71 +76,51 @@ class SQLBuilderVisitor(Visitor):
             raise ValueError("unsupported predicate: " + ast.dump(node))
         op_type = type(node.ops[0])
         if op_type in (ast.Is, ast.IsNot):
-            field = self._compile_field_ref(node.left)
+            alias, col = self._compile_field_ref(node.left)
             if not (
                 isinstance(node.comparators[0], ast.Constant)
                 and node.comparators[0].value is None
             ):
                 raise ValueError("unsupported predicate: " + ast.dump(node))
-            return field.isnull() if op_type is ast.Is else field.notnull()
+            return ("null", alias, col, op_type is ast.Is)
         if op_type in (ast.In, ast.NotIn):
-            field = self._compile_field_ref(node.left)
+            alias, col = self._compile_field_ref(node.left)
             right = node.comparators[0]
             if not isinstance(right, (ast.List, ast.Tuple)):
                 raise ValueError("unsupported predicate: " + ast.dump(node))
-            vals = [e.value for e in right.elts]
             if not all(isinstance(e, ast.Constant) for e in right.elts):
                 raise ValueError("unsupported predicate: " + ast.dump(node))
-            if not vals:
-                # IN () is invalid SQL; an empty set matches nothing.
-                if op_type is ast.In:
-                    return field.isnull() & field.notnull()
-                return field.isnull() | field.notnull()
-            cond = field.isin(vals)
-            return cond if op_type is ast.In else cond.negate()
-        field = self._compile_field_ref(node.left)
+            vals = [e.value for e in right.elts]
+            return ("in", alias, col, vals, op_type is ast.NotIn)
+        alias, col = self._compile_field_ref(node.left)
         op = _cmp_ops.get(op_type)
         if op is None:
             raise ValueError("unsupported predicate: " + ast.dump(node))
         if not isinstance(node.comparators[0], ast.Constant):
             raise ValueError("unsupported predicate: " + ast.dump(node))
-        return op(field, node.comparators[0].value)
+        return ("cmp", op, alias, col, node.comparators[0].value)
 
     def _compile_call_predicate(self, node):
         # like(table.col, '%pat%') / match(table.col, 'query')
         if not isinstance(node.func, ast.Name) or len(node.args) != 2:
             raise ValueError("unsupported predicate: " + ast.dump(node))
-        field = self._compile_field_ref(node.args[0])
+        alias, col = self._compile_field_ref(node.args[0])
         if not isinstance(node.args[1], ast.Constant):
             raise ValueError("unsupported predicate: " + ast.dump(node))
         pat = node.args[1].value
         if node.func.id == "like":
-            return field.like(pat)
+            return ("like", alias, col, pat)
         if node.func.id == "match":
-            from pypika.terms import ValueWrapper
-
-            return MatchCriterion(field, ValueWrapper(pat))
+            return ("match", alias, col, pat)
         raise ValueError("unsupported predicate: " + ast.dump(node))
-
-    def _alias_of_current(self):
-        for alias, table in self.tables.items():
-            if table is self.current_table:
-                return alias
-        raise ValueError("no current table")
 
     def _compile_criterion(self, node):
         if isinstance(node, ast.BoolOp):
             parts = [self._compile_criterion(p) for p in node.values]
             if isinstance(node.op, ast.And):
-                crit = parts[0]
-                for part in parts[1:]:
-                    crit = crit & part
-                return crit
+                return ("and", parts)
             if isinstance(node.op, ast.Or):
-                crit = parts[0]
-                for part in parts[1:]:
-                    crit = crit | part
-                return crit
+                return ("or", parts)
             raise ValueError("unsupported predicate: " + ast.dump(node))
         if isinstance(node, ast.Call):
             return self._compile_call_predicate(node)
@@ -177,35 +129,27 @@ class SQLBuilderVisitor(Visitor):
         raise ValueError("unsupported predicate: " + ast.dump(node))
 
     def _compile_order_key(self, node):
-        order = None
+        desc = False
         while isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             name = node.func.id
-            if name == "desc":
-                order = Order.desc
-            elif name in _order_funcs:
-                inner = node.args[0]
-                field = self._compile_order_field(inner)
-                return _order_funcs[name](field), order
-            else:
-                raise ValueError("unsupported order key: " + ast.dump(node))
             if len(node.args) != 1:
                 raise ValueError("unsupported order key: " + ast.dump(node))
+            if name == "desc":
+                desc = True
+            elif name != "lower":
+                raise ValueError("unsupported order key: " + ast.dump(node))
+            if name == "lower":
+                alias, col = self._compile_field_ref(node.args[0])
+                return (alias, col, "lower", desc)
             node = node.args[0]
-        field = self._compile_order_field(node)
-        return field, order
-
-    def _compile_order_field(self, node):
-        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-            return self._field(node.value.id, node.attr)
-        if isinstance(node, ast.Name):
-            return self._field(self._alias_of_current(), node.id)
-        raise ValueError("unsupported order key: " + ast.dump(node))
+        alias, col = self._compile_field_ref(node)
+        return (alias, col, "", desc)
 
     async def visit_leaf(self, query):
-        if self.sql is None:
+        if self.select is None:
             table = self._table_for(query.__class__)
-            self.current_table = table
-            self.sql = Query.from_(table)
+            self.current_alias = self.alias_for(query.__class__)
+            self.select = sql_render.Select(table)
         if query in self.visited:
             # Prevent infinite recursion
             return
@@ -216,30 +160,27 @@ class SQLBuilderVisitor(Visitor):
 
     async def visit_project(self, query):
         await self.visit(query.child)
-        cols = []
         for name in query.projector:
             if name == ":id":
                 name = "id"
             if "." in name:
                 alias, col = name.split(".")
-                cols.append(self._field(alias, col))
+                self._check_field(alias, col)
+                self.select.columns.append((alias, col))
             else:
-                cols.append(name)
-        self.sql = self.sql.select(*cols)
+                self.select.columns.append(name)
 
     async def visit_take(self, query):
         await self.visit(query.child)
-        self.sql = self.sql.limit(query._count)
+        self.select.limit = query._count
 
     async def visit_skip(self, query):
         await self.visit(query.child)
-        self.sql = self.sql.offset(query._count)
+        self.select.offset = query._count
 
     async def visit_count(self, query):
         await self.visit(query.child)
-        from pypika.terms import Star
-
-        self.sql = self.sql.select(functions.Count(Star()))
+        self.select.columns.append(("count",))
 
     async def visit_where(self, query):
         await self.visit(query.child)
@@ -247,7 +188,11 @@ class SQLBuilderVisitor(Visitor):
         body = query._expr.value if isinstance(query._expr, ast.Expr) else query._expr
         if isinstance(body, str):
             body = ast.parse(body, mode="eval").body
-        self.sql = self.sql.where(self._compile_criterion(body))
+        crit = self._compile_criterion(body)
+        if self.select.where is None:
+            self.select.where = crit
+        else:
+            self.select.where = ("and", [self.select.where, crit])
 
     async def visit_order_by(self, query):
         await self.visit(query.child)
@@ -256,11 +201,7 @@ class SQLBuilderVisitor(Visitor):
             body = ast.parse(body, mode="eval").body
         keys = body.elts if isinstance(body, ast.Tuple) else [body]
         for key in keys:
-            field, order = self._compile_order_key(key)
-            if order is None:
-                self.sql = self.sql.orderby(field)
-            else:
-                self.sql = self.sql.orderby(field, order=order)
+            self.select.order.append(self._compile_order_key(key))
 
     async def visit_edge(self, query):
         await self.visit(query.child)
@@ -268,6 +209,9 @@ class SQLBuilderVisitor(Visitor):
         ctx = query._ctx
         if not isinstance(ctx, JoinOn):
             raise ValueError("edge needs a JoinOn context for SQL")
-        self.sql = self.sql.join(target).on(
-            self.current_table.__getattr__(ctx.left) == target.__getattr__(ctx.right)
+        self.select.joins.append(
+            sql_render.Join(target, self.current_alias, ctx.left, ctx.right)
         )
+
+    def built(self):
+        return sql_render.render(self.select)
