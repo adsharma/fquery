@@ -14,7 +14,6 @@ from .cypher_builder import CypherBuilderVisitor
 from .execute import AbstractSyntaxTreeVisitor
 from .malloy_builder import MalloyBuilderVisitor
 from .naming import query_type_name
-from .polars_builder import PolarsBuilderVisitor
 from .sql_builder import SQLBuilderVisitor
 from .view_model import ViewModel, get_edges, get_return_type
 from .walk import (
@@ -42,6 +41,7 @@ class QueryableOp(IntEnum):
     LET = 11
     ORDER_BY = 12
     GROUP_BY = 13
+    SKIP = 14
 
 
 SwitchType = Union[Tuple, Tuple[int, "Query"]]
@@ -69,8 +69,9 @@ class Query:
         self._unbound_class = self.__class__
         # At least one of ids or items should be true, but not both.
         # One exception is unbound queries, where the ids/items come
-        # from a child query.
-        assert (bool(items) ^ bool(ids)) or child
+        # from a child query. Another is an explicitly empty leaf: a
+        # table root for SQL building, which needs no rows.
+        assert (bool(items) ^ bool(ids)) or child or ids == [] or items == []
         self._items = items
         self._match_props = ids if isinstance(ids, dict) else {}
         if self._items:
@@ -147,6 +148,9 @@ class Query:
 
     def take(self, count: int = 1) -> "TakeQueryable":
         return TakeQueryable(self, count)
+
+    def skip(self, count: int) -> "SkipQueryable":
+        return SkipQueryable(self, count)
 
     def count(self) -> "CountQueryable":
         return CountQueryable(self)
@@ -257,6 +261,16 @@ class Query:
         wait_for(visitor.visit(self))
         return visitor.sql
 
+    def to_sql_string(self) -> str:
+        return str(self.to_sql())
+
+    def to_rows(self, conn) -> list:
+        """Run the built SQL on a DBAPI connection; list of dict rows."""
+        cur = conn.cursor()
+        cur.execute(self.to_sql_string())
+        cols = [d[0] for d in cur.description] if cur.description else []
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
     def to_malloy(self) -> str:
         visitor = MalloyBuilderVisitor([])
         wait_for(visitor.visit(self))
@@ -279,11 +293,15 @@ class Query:
         return qstr
 
     def to_polars(self) -> Tree:
+        from .polars_builder import PolarsBuilderVisitor
+
         visitor = PolarsBuilderVisitor([])
         wait_for(visitor.visit(self))
         return visitor.polars.collect()
 
     async def to_async_polars(self) -> Tree:
+        from .polars_builder import PolarsBuilderVisitor
+
         visitor = PolarsBuilderVisitor([])
         await visitor.visit(self)
         return await visitor.polars.collect_async()
@@ -387,6 +405,17 @@ class TakeQueryable(Query):
     def __init__(self, child: Query, count: int) -> None:
         super(TakeQueryable, self).__init__(child)
         self._count: int = count
+
+    def __str__(self) -> str:
+        return Query.__str__(self) + " " + str(self._count)
+
+
+class SkipQueryable(Query):
+    OP = QueryableOp.SKIP
+
+    def __init__(self, child: Query, count: int = 0):
+        super(SkipQueryable, self).__init__(child)
+        self._count = count
 
     def __str__(self) -> str:
         return Query.__str__(self) + " " + str(self._count)

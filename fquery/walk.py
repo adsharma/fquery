@@ -28,6 +28,14 @@ class EdgeContext:
     pass
 
 
+class JoinOn(EdgeContext):
+    """SQL join keys: source.left_col = target.right_col."""
+
+    def __init__(self, left: str, right: str):
+        self.left = left
+        self.right = right
+
+
 class Edge:
     pass
 
