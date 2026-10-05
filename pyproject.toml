@@ -96,7 +96,6 @@ test = [
 dev = [
     { include-group = "test" },
     { include-group = "pydantic" },
-    { include-group = "sql" },
     { include-group = "sqlmodel" },
     { include-group = "graphql" },
     { include-group = "polars" },
