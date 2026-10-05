@@ -71,6 +71,20 @@ class SQLBuilderVisitor(Visitor):
             return (self.current_alias, node.id)
         raise ValueError("unsupported field: " + ast.dump(node))
 
+    def _compile_value(self, node):
+        # Literal or param("name") reference.
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "param"
+            and len(node.args) == 1
+            and isinstance(node.args[0], ast.Constant)
+        ):
+            return ("param", node.args[0].value)
+        if isinstance(node, ast.Constant):
+            return node.value
+        raise ValueError("unsupported predicate: " + ast.dump(node))
+
     def _compile_compare(self, node):
         if len(node.ops) != 1:
             raise ValueError("unsupported predicate: " + ast.dump(node))
@@ -96,21 +110,30 @@ class SQLBuilderVisitor(Visitor):
         op = _cmp_ops.get(op_type)
         if op is None:
             raise ValueError("unsupported predicate: " + ast.dump(node))
-        if not isinstance(node.comparators[0], ast.Constant):
-            raise ValueError("unsupported predicate: " + ast.dump(node))
-        return ("cmp", op, alias, col, node.comparators[0].value)
+        return ("cmp", op, alias, col, self._compile_value(node.comparators[0]))
 
     def _compile_call_predicate(self, node):
-        # like(table.col, '%pat%') / match(table.col, 'query')
+        # like(table.col, '%pat%') / match(table.col, 'query'); the
+        # field may be wrapped: like(lower(table.col), '%pat%').
         if not isinstance(node.func, ast.Name) or len(node.args) != 2:
             raise ValueError("unsupported predicate: " + ast.dump(node))
-        alias, col = self._compile_field_ref(node.args[0])
-        if not isinstance(node.args[1], ast.Constant):
-            raise ValueError("unsupported predicate: " + ast.dump(node))
-        pat = node.args[1].value
+        target = node.args[0]
+        func = ""
+        if (
+            isinstance(target, ast.Call)
+            and isinstance(target.func, ast.Name)
+            and target.func.id in _order_funcs
+            and len(target.args) == 1
+        ):
+            func = target.func.id
+            target = target.args[0]
+        alias, col = self._compile_field_ref(target)
+        pat = self._compile_value(node.args[1])
         if node.func.id == "like":
-            return ("like", alias, col, pat)
+            return ("like", alias, col, pat, func)
         if node.func.id == "match":
+            if func:
+                raise ValueError("unsupported predicate: " + ast.dump(node))
             return ("match", alias, col, pat)
         raise ValueError("unsupported predicate: " + ast.dump(node))
 
@@ -163,10 +186,18 @@ class SQLBuilderVisitor(Visitor):
         for name in query.projector:
             if name == ":id":
                 name = "id"
+            out = ""
+            if " AS " in name.upper():
+                # "room.id AS rid" (case-insensitive AS)
+                at = name.upper().rindex(" AS ")
+                name, out = name[:at], name[at + 4:].strip()  # noqa: E203
             if "." in name:
                 alias, col = name.split(".")
                 self._check_field(alias, col)
-                self.select.columns.append((alias, col))
+                if out:
+                    self.select.columns.append((alias, col, out))
+                else:
+                    self.select.columns.append((alias, col))
             else:
                 self.select.columns.append(name)
 
@@ -213,5 +244,5 @@ class SQLBuilderVisitor(Visitor):
             sql_render.Join(target, self.current_alias, ctx.left, ctx.right)
         )
 
-    def built(self):
-        return sql_render.render(self.select)
+    def built(self, bound=None):
+        return sql_render.render(self.select, bound)

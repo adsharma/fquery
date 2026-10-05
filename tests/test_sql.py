@@ -57,6 +57,15 @@ class SQLTests(unittest.TestCase):
         )
         self.assertEqual([16, 17, "%a%"], built.params)
 
+    def test_project_alias(self):
+        built = (
+            UserQuery(range(1, 10)).project(["user.id AS uid", "user.name"]).to_sql()
+        )
+        self.assertEqual(
+            'SELECT "user"."id" AS "uid", "user"."name" FROM "user"',
+            built.sql,
+        )
+
     def test_desc_offset_count(self):
         built = (
             UserQuery(range(1, 10))
@@ -72,6 +81,15 @@ class SQLTests(unittest.TestCase):
         )
         built = UserQuery(range(1, 10)).count().to_sql()
         self.assertEqual('SELECT COUNT(*) FROM "user"', built.sql)
+
+    def test_params(self):
+        built = (
+            UserQuery(range(1, 10))
+            .where(ast.Expr("user.name == param('who')"))
+            .to_sql({"who": "o'brien"})
+        )
+        self.assertEqual('SELECT * FROM "user" WHERE "user"."name"=?', built.sql)
+        self.assertEqual(["o'brien"], built.params)
 
 
 if __name__ == "__main__":
