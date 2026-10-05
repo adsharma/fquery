@@ -224,6 +224,29 @@ def model(
             globalns.update(extra)
         return get_type_hints(cls, globalns=globalns)
 
+    def safe_rebuild(sqlmodel_cls, ns=None):
+        """Rebuild a generated SQLModel on fork *or* stock sqlmodel.
+
+        Prefers the fork's ``sqlmodel_rebuild()`` (which also re-maps
+        SQLAlchemy); falls back to pydantic's ``model_rebuild()`` on
+        stock (fixes the validation schema; SQLAlchemy then resolves
+        string refs lazily via its class registry). Returns True if a
+        rebuild ran.
+        """
+        rebuild = getattr(sqlmodel_cls, "sqlmodel_rebuild", None) or getattr(
+            sqlmodel_cls, "model_rebuild", None
+        )
+        if rebuild is None:
+            return False
+        if ns is not None:
+            try:
+                rebuild(_types_namespace=dict(ns))
+                return True
+            except TypeError:
+                pass  # e.g. fork's sqlmodel_rebuild() takes no args
+        rebuild()
+        return True
+
     def rebuild_model(sqlmodel_cls, cls):
         provider = getattr(cls, "__sqlmodel_namespace__", namespace)
         if provider is None:
@@ -307,7 +330,7 @@ def model(
                         other_class.__annotations__[back_populates] = Mapped[
                             List[sqlmodel_cls]
                         ]
-                        other_class.sqlmodel_rebuild()
+                        safe_rebuild(other_class)
 
         # Replace Optional['T'] with Optional[TSQLModel]
         old = field.type
@@ -327,7 +350,7 @@ def model(
             needs_rebuild = True
 
         if needs_rebuild:
-            sqlmodel_cls.sqlmodel_rebuild()
+            safe_rebuild(sqlmodel_cls)
 
     def default_table_name(clsname: str) -> str:
         return inflection.underscore(inflection.pluralize(clsname))
