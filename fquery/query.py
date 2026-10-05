@@ -256,17 +256,17 @@ class Query:
         wait_for(visitor.visit(self))
         return visitor.tree
 
-    def to_sql(self):
+    def to_sql(self, params=None):
         visitor = SQLBuilderVisitor([])
         wait_for(visitor.visit(self))
-        return visitor.built()
+        return visitor.built(params)
 
-    def to_sql_string(self) -> str:
-        return self.to_sql().sql
+    def to_sql_string(self, params=None) -> str:
+        return self.to_sql(params).sql
 
-    def to_rows(self, conn) -> list:
+    def to_rows(self, conn, params=None) -> list:
         """Run the built SQL on a DBAPI connection; list of dict rows."""
-        built = self.to_sql()
+        built = self.to_sql(params)
         cur = conn.cursor()
         cur.execute(built.sql, built.params)
         cols = [d[0] for d in cur.description] if cur.description else []

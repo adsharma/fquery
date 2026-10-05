@@ -65,11 +65,11 @@ def render_field(alias: str, col: str, func: str = "") -> str:
     return ref
 
 
-def render_cond(node, params: list) -> str:
+def render_cond(node, params: list, bound) -> str:
     kind = node[0]
     if kind == "cmp":
         _, op, alias, col, value = node
-        params.append(value)
+        params.append(_resolve(value, bound))
         return render_field(alias, col) + op + "?"
     if kind == "null":
         _, alias, col, is_null = node
@@ -83,16 +83,17 @@ def render_cond(node, params: list) -> str:
         out = render_field(alias, col) + " IN (" + marks + ")"
         return ("NOT " + out) if negate else out
     if kind == "like":
-        _, alias, col, pattern = node
-        params.append(pattern)
-        return render_field(alias, col) + " LIKE ?"
+        _, alias, col, pattern = node[:4]
+        func = node[4] if len(node) > 4 else ""
+        params.append(_resolve(pattern, bound))
+        return render_field(alias, col, func) + " LIKE ?"
     if kind == "match":
         _, alias, col, query = node
-        params.append(query)
+        params.append(_resolve(query, bound))
         return render_field(alias, col) + " MATCH ?"
     if kind in ("and", "or"):
         glue = " AND " if kind == "and" else " OR "
-        return "(" + glue.join(render_cond(p, params) for p in node[1]) + ")"
+        return "(" + glue.join(render_cond(p, params, bound) for p in node[1]) + ")"
     if kind == "true":
         return "1=1"
     if kind == "false":
@@ -100,14 +101,28 @@ def render_cond(node, params: list) -> str:
     raise ValueError("cannot render: " + repr(node))
 
 
-def render(select: Select) -> BuiltSQL:
+def _resolve(value, bound):
+    if isinstance(value, tuple) and len(value) == 2 and value[0] == "param":
+        try:
+            return bound[value[1]]
+        except (KeyError, TypeError):
+            raise ValueError("missing bound param: " + value[1])
+    return value
+
+
+def render(select: Select, bound=None) -> BuiltSQL:
     params: list = []
     cols = []
     for proj in select.columns:
         if proj == ("count",):
             cols.append("COUNT(*)")
         elif isinstance(proj, tuple):
-            cols.append(render_field(proj[0], proj[1]))
+            if len(proj) == 3:
+                cols.append(
+                    render_field(proj[0], proj[1]) + " AS " + quote_ident(proj[2])
+                )
+            else:
+                cols.append(render_field(proj[0], proj[1]))
         else:
             cols.append(quote_ident(proj))
     sql = "SELECT " + (", ".join(cols) if cols else "*")
@@ -126,7 +141,7 @@ def render(select: Select) -> BuiltSQL:
             + quote_ident(join.right_col)
         )
     if select.where is not None:
-        sql += " WHERE " + render_cond(select.where, params)
+        sql += " WHERE " + render_cond(select.where, params, bound)
     if select.order:
         parts = []
         for alias, col, func, desc in select.order:
