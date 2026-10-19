@@ -136,6 +136,61 @@ class QueryTests(unittest.TestCase):
         self.assertEqual(expected, resp)
 
     @async_test
+    async def test_skip(self):
+        resp = (
+            await UserQuery(range(1, 6)).skip(2).project(["name", ":id"]).to_json()
+        )
+        expected = [
+            {
+                "None": [
+                    {"name": "id3", ":id": 3},
+                    {"name": "id4", ":id": 4},
+                    {"name": "id5", ":id": 5},
+                ]
+            }
+        ]
+        self.assertEqual(expected, resp)
+
+    def test_sync_skip(self):
+        resp = (
+            UserQuery(range(1, 6))
+            .skip(2)
+            .project(["name", ":id"])
+            .to_json()
+            .send()
+        )
+        expected = [
+            {
+                "None": [
+                    {"name": "id3", ":id": 3},
+                    {"name": "id4", ":id": 4},
+                    {"name": "id5", ":id": 5},
+                ]
+            }
+        ]
+        self.assertEqual(expected, resp)
+
+    @async_test
+    async def test_skip_with_take(self):
+        resp = (
+            await UserQuery(range(1, 10))
+            .skip(2)
+            .take(3)
+            .project(["name", ":id"])
+            .to_json()
+        )
+        expected = [
+            {
+                "None": [
+                    {"name": "id3", ":id": 3},
+                    {"name": "id4", ":id": 4},
+                    {"name": "id5", ":id": 5},
+                ]
+            }
+        ]
+        self.assertEqual(expected, resp)
+
+    @async_test
     async def test_nest(self):
         resp = (
             await UserQuery(range(1, 4))
