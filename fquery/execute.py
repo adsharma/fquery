@@ -228,7 +228,7 @@ class AbstractSyntaxTreeVisitor(Visitor):
         async def _func(it):
             it = aioitertools.iter(it)
             # islice takes start, stop
-            async for i in aioitertools.islice(it, query.skip, None):
+            async for i in aioitertools.islice(it, query._count, None):
                 yield i
 
         self.map_func = _func
