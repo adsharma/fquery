@@ -137,9 +137,7 @@ class QueryTests(unittest.TestCase):
 
     @async_test
     async def test_skip(self):
-        resp = (
-            await UserQuery(range(1, 6)).skip(2).project(["name", ":id"]).to_json()
-        )
+        resp = await UserQuery(range(1, 6)).skip(2).project(["name", ":id"]).to_json()
         expected = [
             {
                 "None": [
@@ -152,13 +150,7 @@ class QueryTests(unittest.TestCase):
         self.assertEqual(expected, resp)
 
     def test_sync_skip(self):
-        resp = (
-            UserQuery(range(1, 6))
-            .skip(2)
-            .project(["name", ":id"])
-            .to_json()
-            .send()
-        )
+        resp = UserQuery(range(1, 6)).skip(2).project(["name", ":id"]).to_json().send()
         expected = [
             {
                 "None": [
