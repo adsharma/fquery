@@ -29,25 +29,30 @@ class PolarsBuilderVisitor(Visitor):
         # TODO: make this columnar and real lazy instead of faking laziness
         self.polars = pl.DataFrame(await query.as_list()).lazy()
         while self.polars_stack:
-            func, params = self.polars_stack.pop()
-            self.polars = getattr(self.polars, func)(params)
+            func, params, kwargs = self.polars_stack.pop()
+            self.polars = getattr(self.polars, func)(params, **kwargs)
 
     async def visit_project(self, query):
-        self.polars_stack.append(("select", query.projector))
+        self.polars_stack.append(("select", query.projector, {}))
         await self.visit(query.child)
 
     async def visit_take(self, query):
-        self.polars_stack.append(("limit", query._count))
+        self.polars_stack.append(("limit", query._count, {}))
         await self.visit(query.child)
 
     async def visit_where(self, query):
         left, op, right = query._expr.value.split()
         right = ast.literal_eval(right)
         table, field = left.split(".") if "." in left else (self.malloy, left)
-        self.polars_stack.append(("filter", (_cmp_ops_dict[op](pl.col(field), right))))
+        self.polars_stack.append(
+            ("filter", (_cmp_ops_dict[op](pl.col(field), right)), {})
+        )
         await self.visit(query.child)
 
     async def visit_order_by(self, query):
         table, field = query._expr.value.split(".")
-        self.polars_stack.append(("sort", field))
+        # Stable sort: keep input order for equal keys so that
+        # order_by(...).take(n) is deterministic (polars defaults to
+        # maintain_order=False, which leaves tie order to thread scheduling).
+        self.polars_stack.append(("sort", field, {"maintain_order": True}))
         await self.visit(query.child)
